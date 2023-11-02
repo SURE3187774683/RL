@@ -4,14 +4,17 @@ import numpy as np
 import cv2
 from PIL import Image
 import pickle
+import time
 import matplotlib.pyplot as plt
 from matplotlib import style
 style.use('ggplot')
 
+
+q_table = None     #是否调用已知数据
 EPISODES = 30000  # 训练的回合数
 SHOW_EVERY = 3000  # 每隔几次展示一次数据
 
-epsilon = 0.1  # 随机选择action的概率
+epsilon = 0.5  # 随机选择action的概率
 EPS_DECAY = 0.9998  # 随机选择的衰减率
 DISCOUNT = 0.95  # i+1次state value的影响程度
 LEARNING_RATE = 0.1  # 学习速率（步长）
@@ -78,11 +81,11 @@ class Cube:
 
 
 class envCube:  # 生成环境类
-    SIZE = 2
+    SIZE = 6
     OBSERVATION_SPACE_VALUES = (SIZE, SIZE, 3)  # state的数量
     ACTION_SPACE_VALUES = 9  # action的数量
     RETURN_IMAGE = False
-    NUM_ENEMIES = 3  # enemy的数量
+    NUM_ENEMIES = 2  # enemy的数量
 
     FOOD_REWARD = 25
     ENEMY_PENALITY = -300
@@ -180,9 +183,7 @@ class envCube:  # 生成环境类
     def get_qtable(self, qtable_name=None):
         if qtable_name is None:
             q_table = {}
-
-##
-            def initialize_q_table(dimensions, ACTION_SPACE_VALUES):
+            def initialize_q_table(dimensions, ACTION_SPACE_VALUES):##定义q_table初始化函数
                 q_table = {}
                 recursive_initialize_q_table(
                     dimensions, ACTION_SPACE_VALUES, [], q_table)
@@ -201,11 +202,6 @@ class envCube:  # 生成环境类
 
             dimensions = self.NUM_ENEMIES*2*[self.SIZE]+[self.SIZE]+[self.SIZE]
             q_table = initialize_q_table(dimensions, ACTION_SPACE_VALUES)
-
-##
-
-# 更新qtable的维数
-###
         else:
             with open(qtable_name, 'rb') as f:
                 q_table = pickle.load(f)
@@ -266,5 +262,5 @@ plt.xlabel('episode #')
 plt.ylabel(f'mean {SHOW_EVERY} reward')
 plt.show()
 
-# with open(f'qtable_{int(time.time())}.pickle','wb') as f:
-# pickle.dump(q_table,f)
+#with open(f'qtable_{int(time.time())}.pickle','wb') as f:
+#    pickle.dump(q_table,f)
