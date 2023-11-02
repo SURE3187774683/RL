@@ -78,11 +78,11 @@ class Cube:
 
 
 class envCube:  # 生成环境类
-    SIZE = 6
+    SIZE = 2
     OBSERVATION_SPACE_VALUES = (SIZE, SIZE, 3)  # state的数量
     ACTION_SPACE_VALUES = 9  # action的数量
     RETURN_IMAGE = False
-    NUM_ENEMIES = 4  # enemy的数量
+    NUM_ENEMIES = 3  # enemy的数量
 
     FOOD_REWARD = 25
     ENEMY_PENALITY = -300
@@ -113,10 +113,10 @@ class envCube:  # 生成环境类
         if self.RETURN_IMAGE:
             observation = np.array(self.get_image())
         else:
-            for i in range(self.NUM_ENEMIES):
                 observation = (self.player - self.food)
                 # 考虑和每个enemy的位置关系
-                observation += (self.player - self.enemies[i])
+                for i in range(self.NUM_ENEMIES):
+                    observation += (self.player - self.enemies[i])
 
         self.episode_step = 0
 
@@ -132,9 +132,10 @@ class envCube:  # 生成环境类
         if self.RETURN_IMAGE:
             new_observation = np.array(self.get_image())
         else:
-            for i in range(self.NUM_ENEMIES):
-                new_observation = (self.player - self.food)
+            
+            new_observation = (self.player - self.food)
                 # 考虑和每个enemy的位置关系
+            for i in range(self.NUM_ENEMIES):
                 new_observation += (self.player - self.enemies[i])
 
 # 判断player和enemy是否重叠
