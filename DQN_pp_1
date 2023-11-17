@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from torch.autograd import Variable
 from collections import deque
 import random
 import numpy as np
@@ -20,7 +19,10 @@ gamma = 0.99                #学习率
 
 epsilon_start = 1.0         #epsilon的初始值
 epsilon_end = 0.01          #epsilon的终止值
-epsilon_decay = 0.99995     #epsilon的缩减速率
+epsilon_decay = 0.995     #epsilon的缩减速率
+
+num_steps=20000              #总训练次数
+visualize=False             #是否观看回放
 ##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
@@ -365,9 +367,8 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
 ###############################################################################################################
 env = envCube()
 model = build_model(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES)   #建立以state数量为输入，action数量为输出的神经网络
-
 agent = DQNAgent(env.OBSERVATION_SPACE_VALUES[0], env.ACTION_SPACE_VALUES, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay)
-agent.train(env, num_steps=5000, visualize=False, verbose=1)        #训练agent
+agent.train(env, num_steps, visualize, verbose=1)        #训练agent
 show_table(True)
 #图表展示训练效果
 
