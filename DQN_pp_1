@@ -19,9 +19,9 @@ gamma = 0.99                #学习率
 
 epsilon_start = 1.0         #epsilon的初始值
 epsilon_end = 0.01          #epsilon的终止值
-epsilon_decay = 0.995     #epsilon的缩减速率
+epsilon_decay = 0.9995     #epsilon的缩减速率
 
-num_steps=20000              #总训练次数
+num_steps=10000              #总训练次数
 visualize=False             #是否观看回放
 ##########################################################################
 
@@ -356,10 +356,18 @@ class DQNAgent:
 
 def show_table(if_show):        #是否要展示episode和average_reward的关系
     if if_show==True:
-        plt.plot(range(1, len(DQNAgent.average_rewards) + 1), DQNAgent.average_rewards)
+        # 定义卷积核
+        window_size = 10
+        kernel = np.ones(window_size) / window_size
+
+        # 对平均奖励数据进行卷积操作
+        smoothed_rewards = np.convolve(DQNAgent.average_rewards, kernel, mode='valid')
+
+        # 绘制平滑后的曲线
+        plt.plot(range(window_size, window_size + len(smoothed_rewards)), smoothed_rewards)
         plt.xlabel('Episode')
         plt.ylabel('Average Reward')
-        plt.title('Average Reward per Episode')
+        plt.title('Smoothed Average Reward per Episode')
         plt.show()
 
 
