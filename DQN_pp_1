@@ -6,28 +6,24 @@ import torch.nn.functional as F
 from torch.autograd import Variable
 from collections import deque
 import random
-
 import numpy as np
 import cv2
 from PIL import Image
-import pickle
-import time
 import matplotlib.pyplot as plt
 from matplotlib import style
 style.use('ggplot')
 
+##########################################################################
+memory_capacity = 50000     #经验池的大小
+batch_size = 60             #每次从经验池中取出的个数
+gamma = 0.99                #学习率
 
-q_table = None     #是否调用已知数据
-EPISODES = 30000  # 训练的回合数
-
-EPS_DECAY = 0.9998  # 随机选择的衰减率
-DISCOUNT = 0.95  # i+1次state value的影响程度
-LEARNING_RATE = 0.1  # 学习速率（步长）
-
+epsilon_start = 1.0         #epsilon的初始值
+epsilon_end = 0.01          #epsilon的终止值
+epsilon_decay = 0.99995     #epsilon的缩减速率
+##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
-
-
 class Cube:
     def __init__(self, size):  # 随机生成个体的位置
         self.size = size
@@ -175,6 +171,7 @@ class envCube:  # 生成环境类
                     done = True
 
         return new_observation, reward, done
+    
 
     def render(self):
         img = self.get_image()
@@ -194,6 +191,7 @@ class envCube:  # 生成环境类
 
         img = Image.fromarray(env, 'RGB')
         return img
+    
 
 ########################################################################
    
@@ -337,7 +335,8 @@ class DQNAgent:
                 if verbose == 1:        #当verbose为1时，输出游戏回合数和平均奖励
                     average_reward = total_reward / episode_count
                     DQNAgent.average_rewards.append(average_reward)
-                    print(f"Step: {step},### Average Reward: {average_reward},### Epsilon:{self.epsilon}")
+                    print(f"Step: {step}, Epsilon:{self.epsilon}")
+                    print(f"### Average Reward: {average_reward}")
 
                 if verbose == 2:        #当verbose为2时，输出游戏回合数和每轮奖励
                     print(f"Step: {step}, Episode Reward: {episode_reward}")
@@ -353,29 +352,23 @@ class DQNAgent:
             if visualize:
                 env.render()
 
+def show_table(if_show):        #是否要展示episode和average_reward的关系
+    if if_show==True:
+        plt.plot(range(1, len(DQNAgent.average_rewards) + 1), DQNAgent.average_rewards)
+        plt.xlabel('Episode')
+        plt.ylabel('Average Reward')
+        plt.title('Average Reward per Episode')
+        plt.show()
 
 
-# Usage example
+
+###############################################################################################################
 env = envCube()
 model = build_model(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES)   #建立以state数量为输入，action数量为输出的神经网络
 
-##########################################################################
-#定义游戏参数
-memory_capacity = 50000 #经验池的大小
-batch_size = 60         #每次从经验池中取出的个数
-gamma = 0.99            #学习率
-
-epsilon_start = 1.0     #epsilon的初始值
-epsilon_end = 0.01      #epsilon的终止值
-epsilon_decay = 0.99995   #epsilon的缩减速率
-##########################################################################
-
 agent = DQNAgent(env.OBSERVATION_SPACE_VALUES[0], env.ACTION_SPACE_VALUES, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay)
-agent.train(env, num_steps=10000, visualize=True, verbose=1)
-
+agent.train(env, num_steps=5000, visualize=False, verbose=1)        #训练agent
+show_table(True)
 #图表展示训练效果
-plt.plot(range(1, len(DQNAgent.average_rewards) + 1), DQNAgent.average_rewards)
-plt.xlabel('Episode')
-plt.ylabel('Average Reward')
-plt.title('Average Reward per Episode')
-plt.show()
+
+
