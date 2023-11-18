@@ -14,7 +14,7 @@ style.use('ggplot')
 
 ##########################################################################
 memory_capacity = 50000     #经验池的大小
-batch_size = 60             #每次从经验池中取出的个数
+batch_size = 30             #每次从经验池中取出的个数
 gamma = 0.99                #学习率
 
 epsilon_start = 1.0         #epsilon的初始值
@@ -83,11 +83,13 @@ class Cube:
 
 class envCube:  # 生成环境类
     SIZE = 10
+    
+    NUM_PLAYERS = 1  # player的数量
+    NUM_ENEMIES = 1  # enemy的数量
+
     OBSERVATION_SPACE_VALUES = (4,)  # state的数量
     ACTION_SPACE_VALUES = 4 #action的数量
     RETURN_IMAGE = False
-    NUM_ENEMIES = 1  # enemy的数量
-    NUM_PLAYERS = 1  # player的数量
 
     FOOD_REWARD = 25
     ENEMY_PENALITY = -300
