@@ -13,17 +13,18 @@ from matplotlib import style
 style.use('ggplot')
 
 ##########################################################################
-memory_capacity = 50000     #经验池的大小
+memory_capacity = 90        #经验池的大小
 batch_size = 30             #每次从经验池中取出的个数
 gamma = 0.99                #折扣因子
-lr = 1e-3                   #学习率(步长)
+lr = 0.3                   #学习率(步长)
 
 epsilon_start = 1.0         #epsilon的初始值
-epsilon_end = 0.001          #epsilon的终止值
-epsilon_decay = 0.9995      #epsilon的缩减速率
+epsilon_end = 0.1          #epsilon的终止值
+epsilon_decay = 0.995      #epsilon的缩减速率
 
-num_steps=10000             #总训练次数
-visualize=False             #是否观看回放
+num_steps=3000              #总训练次数
+visualize = True              #是否观看回放
+env_move = True                #env是否变化
 ##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
@@ -83,10 +84,9 @@ class Cube:
 
 
 class envCube:  # 生成环境类
-    SIZE = 50
-    
-    NUM_PLAYERS = 2  # player的数量
-    NUM_ENEMIES = 10  # enemy的数量
+    SIZE = 50           #地图大小
+    NUM_PLAYERS = 6     # player的数量
+    NUM_ENEMIES = 100   # enemy的数量
 
     OBSERVATION_SPACE_VALUES = ((2+2*NUM_ENEMIES)*NUM_PLAYERS,)  # state的数量
     ACTION_SPACE_VALUES = 4*NUM_PLAYERS #action的数量
@@ -94,7 +94,7 @@ class envCube:  # 生成环境类
 
     FOOD_REWARD = 25
     ENEMY_PENALITY = -300
-    MOVE_PENALITY = -1
+    MOVE_PENALITY = -50
 
     # 创建一个字典，用于存放agent的RGB
     d = {1: (255, 0, 0),  # blue
@@ -142,9 +142,10 @@ class envCube:  # 生成环境类
         for i in range(self.NUM_PLAYERS):
             self.players[i].action(action)
 
-        #self.food.move()
-        #for enemy in self.enemies:
-        #    enemy.move()
+        if env_move == True:
+            self.food.move()
+            for enemy in self.enemies:
+                enemy.move()
 
         if self.RETURN_IMAGE:
             new_observation = np.array(self.get_image())
