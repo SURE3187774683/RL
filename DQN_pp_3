@@ -16,10 +16,10 @@ style.use('ggplot')
 memory_capacity = 50000     #经验池的大小
 batch_size = 30             #每次从经验池中取出的个数
 gamma = 0.99                #折扣因子
-lr = 1e-2                   #学习率(步长)
+lr = 1e-3                   #学习率(步长)
 
 epsilon_start = 1.0         #epsilon的初始值
-epsilon_end = 0.01          #epsilon的终止值
+epsilon_end = 0.001          #epsilon的终止值
 epsilon_decay = 0.9995      #epsilon的缩减速率
 
 num_steps=10000             #总训练次数
@@ -83,10 +83,10 @@ class Cube:
 
 
 class envCube:  # 生成环境类
-    SIZE = 20
+    SIZE = 50
     
     NUM_PLAYERS = 2  # player的数量
-    NUM_ENEMIES = 2  # enemy的数量
+    NUM_ENEMIES = 10  # enemy的数量
 
     OBSERVATION_SPACE_VALUES = ((2+2*NUM_ENEMIES)*NUM_PLAYERS,)  # state的数量
     ACTION_SPACE_VALUES = 4*NUM_PLAYERS #action的数量
@@ -255,6 +255,8 @@ class ReplayMemory:     #经验回放缓存
 
 class DQNAgent:
     average_rewards = []  # 用于保存每个回合的平均奖励
+    loss_value = 0
+    losses = []  # 用于保存每一步的损失值
     def __init__(self, nb_states, nb_actions, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay):       #生成agent的参数
 
         self.nb_states = nb_states
@@ -308,7 +310,8 @@ class DQNAgent:
         expected_q_values = rewards + (~dones) * self.gamma * next_q_values
         
         loss = self.loss_fn(q_values, expected_q_values)
-        
+        self.loss_value = loss.item()
+
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -325,24 +328,27 @@ class DQNAgent:
         total_reward = 0        #记录总训练次数
         episode_count = 0       # 新增的变量用于保存游戏的总数
         
+        
         for step in range(num_steps):
             action = self.select_action(state)              #选择action
             next_state, reward, done = env.step(action)     #游戏走一步
             episode_reward += reward                        #累加当次训练的reward
-            total_reward += reward
-
+            self.losses.append(self.loss_value)
+            
             self.push_transition(state, action, reward, next_state, done)   #将当前状态放入经验池
             self.update_model()
             
             if done:
                 state = env.reset()
                 episode_count += 1
+                average_reward = episode_reward / episode_count
+                DQNAgent.average_rewards.append(average_reward)
 
                 if verbose == 1:        #当verbose为1时，输出游戏回合数和平均奖励
-                    average_reward = total_reward / episode_count
-                    DQNAgent.average_rewards.append(average_reward)
+                    
                     print(f"Step: {step}, Epsilon:{self.epsilon}")
                     print(f"### Average Reward: {average_reward}")
+                episode_reward = 0
 
                 if verbose == 2:        #当verbose为2时，输出游戏回合数和每轮奖励
                     print(f"Step: {step}, Episode Reward: {episode_reward}")
@@ -365,16 +371,29 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
         kernel = np.ones(window_size) / window_size
 
         # 对平均奖励数据进行卷积操作
+        # 设置子图布局
+        fig, (ax1, ax2) = plt.subplots(2, 1)
+
+        # 绘制平滑后的奖励曲线
         smoothed_rewards = np.convolve(DQNAgent.average_rewards, kernel, mode='valid')
+        ax1.plot(range(window_size, window_size + len(smoothed_rewards)), smoothed_rewards)
+        ax1.set_xlabel('Episode')
+        ax1.set_ylabel('Average Reward')
+        ax1.set_title('Smoothed Average Reward per Episode')
 
-        # 绘制平滑后的曲线
-        plt.plot(range(window_size, window_size + len(smoothed_rewards)), smoothed_rewards)
-        plt.xlabel('Episode')
-        plt.ylabel('Average Reward')
-        plt.title('Smoothed Average Reward per Episode')
+        # 绘制平滑后的损失曲线
+        smoothed_loss = np.convolve(DQNAgent.losses, kernel, mode='valid')
+        smoothed_loss = smoothed_loss[30:]
+        ax2.plot(range(30, 30 + len(smoothed_loss)), smoothed_loss)
+        ax2.set_xlabel('Step')
+        ax2.set_ylabel('Loss')
+        ax2.set_title('Smoothed Average Loss per Step')
+
+        # 调整子图之间的间距
+        plt.tight_layout()
+
+        # 显示图形
         plt.show()
-
-
 
 ###############################################################################################################
 env = envCube()
@@ -383,5 +402,3 @@ agent = DQNAgent(env.OBSERVATION_SPACE_VALUES[0], env.ACTION_SPACE_VALUES, memor
 agent.train(env, num_steps, visualize, verbose=1)        #训练agent
 show_table(True)
 #图表展示训练效果
-
-
