@@ -15,13 +15,14 @@ style.use('ggplot')
 ##########################################################################
 memory_capacity = 50000     #经验池的大小
 batch_size = 30             #每次从经验池中取出的个数
-gamma = 0.99                #学习率
+gamma = 0.99                #折扣因子
+lr = 1e-2                   #学习率(步长)
 
 epsilon_start = 1.0         #epsilon的初始值
 epsilon_end = 0.01          #epsilon的终止值
-epsilon_decay = 0.9995       #epsilon的缩减速率
+epsilon_decay = 0.9995      #epsilon的缩减速率
 
-num_steps=10000              #总训练次数
+num_steps=10000             #总训练次数
 visualize=False             #是否观看回放
 ##########################################################################
 
@@ -84,11 +85,11 @@ class Cube:
 class envCube:  # 生成环境类
     SIZE = 20
     
-    NUM_PLAYERS = 10  # player的数量
-    NUM_ENEMIES = 10  # enemy的数量
+    NUM_PLAYERS = 2  # player的数量
+    NUM_ENEMIES = 2  # enemy的数量
 
     OBSERVATION_SPACE_VALUES = ((2+2*NUM_ENEMIES)*NUM_PLAYERS,)  # state的数量
-    ACTION_SPACE_VALUES = 9*NUM_PLAYERS #action的数量
+    ACTION_SPACE_VALUES = 4*NUM_PLAYERS #action的数量
     RETURN_IMAGE = False
 
     FOOD_REWARD = 25
@@ -107,23 +108,23 @@ class envCube:  # 生成环境类
     def reset(self):
         self.players = []            # 创建players列表
         for i in range(self.NUM_PLAYERS):
-            player = Cube(self.SIZE)    # 创建player
+            player = Cube(self.SIZE)        # 创建player
             self.players.append(player)
 
-        self.food = Cube(self.SIZE)  # 创建food
-        for i in range(self.NUM_PLAYERS):
+        self.food = Cube(self.SIZE)         # 创建food
+        for i in range(self.NUM_PLAYERS):   
             while self.food == self.players[i]:
                 self.food = Cube(self.SIZE)
 
-        self.enemies = []            # 创建敌人列表
+        self.enemies = []                   # 创建enemy
         for i in range(self.NUM_PLAYERS):
             for j in range(self.NUM_ENEMIES):
-                enemy = Cube(self.SIZE)    # 创建敌人
+                enemy = Cube(self.SIZE)
                 while enemy == self.players[i] or enemy == self.food or enemy in self.enemies:
                     enemy = Cube(self.SIZE)
                 self.enemies.append(enemy)
 
-        if self.RETURN_IMAGE:
+        if self.RETURN_IMAGE:               #通过图像获取state
             observation = np.array(self.get_image())
         else:
                 observation = ()
@@ -140,8 +141,9 @@ class envCube:  # 生成环境类
         self.episode_step += 1   
         for i in range(self.NUM_PLAYERS):
             self.players[i].action(action)
-        # self.food.move()
-        # for enemy in self.enemies:
+
+        #self.food.move()
+        #for enemy in self.enemies:
         #    enemy.move()
 
         if self.RETURN_IMAGE:
@@ -201,7 +203,6 @@ class envCube:  # 生成环境类
 def build_model(input_shape, output_shape):
     model = Model(input_shape, output_shape)
     return model
-   
 class Model(nn.Module):
     def __init__(self, input_shape, output_shape):      #生成一个state数量输入，action数量输出的神经网络
         super(Model, self).__init__()
@@ -272,7 +273,7 @@ class DQNAgent:
         self.target_net.load_state_dict(self.policy_net.state_dict())   #使两个q_net结构相同
         self.target_net.eval()                                          #将目标网络设为评估模式
         
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=1e-3)  #建立优化器来更新策略网络的权重
+        self.optimizer = optim.Adam(self.policy_net.parameters(), lr)  #建立优化器来更新策略网络的权重
         self.loss_fn = nn.MSELoss()                                     #定义损失函数为均方误差损失函数
         
     def select_action(self, state):     
@@ -318,9 +319,9 @@ class DQNAgent:
         self.target_net.load_state_dict(self.policy_net.state_dict())
         
     def train(self, env, num_steps, visualize, verbose):    #训练agent
-        state = env.reset()
+        state = env.reset()     #重置环境
+
         episode_reward = 0      #记录当次训练的reward
-        
         total_reward = 0        #记录总训练次数
         episode_count = 0       # 新增的变量用于保存游戏的总数
         
