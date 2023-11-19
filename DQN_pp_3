@@ -13,17 +13,17 @@ from matplotlib import style
 style.use('ggplot')
 
 ##########################################################################
-memory_capacity = 90        #经验池的大小
+memory_capacity = 200        #经验池的大小
 batch_size = 30             #每次从经验池中取出的个数
 gamma = 0.99                #折扣因子
-lr = 0.3                   #学习率(步长)
+lr = 1e-1                   #学习率(步长)
 
 epsilon_start = 1.0         #epsilon的初始值
 epsilon_end = 0.1          #epsilon的终止值
-epsilon_decay = 0.995      #epsilon的缩减速率
+epsilon_decay = 0.9995      #epsilon的缩减速率
 
 num_steps=3000              #总训练次数
-visualize = True              #是否观看回放
+visualize = False              #是否观看回放
 env_move = True                #env是否变化
 ##########################################################################
 
