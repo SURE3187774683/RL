@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 ############################################
-from torch.utils.tensorboard import SummaryWriter
 ############################################
 from collections import deque
 import random
@@ -19,14 +18,15 @@ style.use('ggplot')
 REPLAY_MEMORY_SIZE = 20000
 MINI_REPLAY_MEMORY_SIZE = 64
 UPDATE_TARGET_MODEL_EVERY = 20
-EPISODES = 50
+EPISODES = 10000
 DISCOUNT = 0.95
 
 epsilon_start = 1.0         #epsilon的初始值
 epsilon_end = 0.1          #epsilon的终止值
 epsilon_decay = 0.995      #epsilon的缩减速率
 
-SHOW_EVERY = 5
+visualize = True
+SHOW_EVERY = 20
 STATISTICS_EVERY = 10
 env_move = False                #env是否变化
 ##########################################################################
@@ -207,17 +207,6 @@ class envCube:  # 生成环境类
 
 ########################################################################
 
-
-class ModifiedTensorBoard(SummaryWriter):
-    def __init__(self, log_dir):
-        super().__init__(log_dir)
-        self.step = 0
-
-    def update_stats(self, **stats):
-        for key, value in stats.items():
-            self.add_scalar(key, value, self.step)
-        self.step += 1
-
 class DQNAgent(nn.Module):
     def __init__(self, input_shape, output_shape):
         super().__init__()
@@ -264,7 +253,6 @@ class ReplayMemory:
     def __len__(self):
         return len(self.memory)
 
-
 env = envCube()
 agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES)
 
@@ -277,8 +265,9 @@ replay_memory = ReplayMemory(REPLAY_MEMORY_SIZE)        #初始化经验池
 optimizer = optim.Adam(agent.parameters())              #初始化优化器
 
 episode_rewards = []                                    #初始化总reward
-#model_save_avg_reward = -200
+model_save_avg_reward = -200
 
+#开始训练
 for episode in range(EPISODES):
     obs = env.reset()
     done = False
@@ -313,19 +302,14 @@ for episode in range(EPISODES):
             loss.backward()
             optimizer.step()
 
+        if visualize:
+                env.render()
+    if episode % STATISTICS_EVERY == 0 and episode > 0:
+        avg_reward = sum(episode_rewards[-STATISTICS_EVERY:]) / STATISTICS_EVERY
+        max_reward = max(episode_rewards[-STATISTICS_EVERY:])
+        min_reward = min(episode_rewards[-STATISTICS_EVERY:])
+        print(f'avg_reward:{avg_reward}, max_reward:{max_reward}, min_reward:{min_reward}')
 
-        if done and episode % SHOW_EVERY == 0:
-            env.render()
-
-    #if episode % STATISTICS_EVERY == 0 and episode > 0:
-        #avg_reward = sum(episode_rewards[-STATISTICS_EVERY:]) / STATISTICS_EVERY
-        #max_reward = max(episode_rewards[-STATISTICS_EVERY:])
-        #min_reward = min(episode_rewards[-STATISTICS_EVERY:])
-        #print(f'avg_reward:{avg_reward}, max_reward:{max_reward}, min_reward:{min_reward}')
-
-        #if avg_reward > model_save_avg_reward:
-            #torch.save(agent.state_dict(), f'./models/{avg_reward:7.3f}_{int(time.time())}.model')
-            #model_save_avg_reward = avg_reward
     avg_reward = sum(episode_rewards[-STATISTICS_EVERY:]) / STATISTICS_EVERY
     print(f'episode:{episode}, avg_reward:{avg_reward}, epsilon:{epsilon:7.4f}')
     episode_rewards.append(episode_reward)
