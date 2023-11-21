@@ -22,7 +22,7 @@ epsilon_start = 1.0         #epsilon的初始值
 epsilon_end = 0.1          #epsilon的终止值
 epsilon_decay = 0.9995      #epsilon的缩减速率
 
-EPISODE_N = 5000              #总训练次数
+EPISODE_N = 20000              #总训练次数
 visualize = False              #是否观看回放
 env_move = False                #env是否变化
 ##########################################################################
