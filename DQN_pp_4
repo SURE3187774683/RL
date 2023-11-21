@@ -25,7 +25,7 @@ epsilon_start = 1.0         #epsilon的初始值
 epsilon_end = 0.1          #epsilon的终止值
 epsilon_decay = 0.995      #epsilon的缩减速率
 
-visualize = True
+visualize = False
 SHOW_EVERY = 20
 STATISTICS_EVERY = 10
 env_move = False                #env是否变化
@@ -213,8 +213,6 @@ class DQNAgent(nn.Module):
         self.input_shape = input_shape
         self.output_shape = output_shape
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
         self.conv1 = nn.Conv2d(input_shape[0], 32, kernel_size=1, stride=1)
         self.conv2 = nn.Conv2d(32, 32, kernel_size=3, stride=1)
         self.fc1 = nn.Linear(self.feature_size(), 32)
@@ -243,21 +241,22 @@ class ReplayMemory:
         batch = random.sample(self.memory, batch_size)
         obs_batch, action_batch, reward_batch, next_obs_batch, done_batch = zip(*batch)
         return (
-            torch.FloatTensor(np.array(obs_batch)),
-            torch.LongTensor(np.array(action_batch)),
-            torch.FloatTensor(np.array(reward_batch)),
-            torch.FloatTensor(np.array(next_obs_batch)),
-            torch.FloatTensor(np.array(done_batch))
+            torch.FloatTensor(np.array(obs_batch)).to(device),
+            torch.LongTensor(np.array(action_batch)).to(device),
+            torch.FloatTensor(np.array(reward_batch)).to(device),
+            torch.FloatTensor(np.array(next_obs_batch)).to(device),
+            torch.FloatTensor(np.array(done_batch)).to(device)
         )
 
     def __len__(self):
         return len(self.memory)
 
 env = envCube()
-agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES)
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-input_shape = (3, 64, 64)  # 输入图像的形状
-target_agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES)
+agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES).to(device)
+target_agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES).to(device)
+
 target_agent.load_state_dict(agent.state_dict())
 target_agent.eval()
 
@@ -266,6 +265,7 @@ optimizer = optim.Adam(agent.parameters())              #初始化优化器
 
 episode_rewards = []                                    #初始化总reward
 model_save_avg_reward = -200
+
 
 #开始训练
 for episode in range(EPISODES):
@@ -276,7 +276,7 @@ for episode in range(EPISODES):
 
     while not done:
         if np.random.random() > epsilon:                #选择action
-            action = torch.argmax(agent(torch.FloatTensor(obs).unsqueeze(0))).item()
+            action = torch.argmax(agent(torch.FloatTensor(obs).unsqueeze(0))).item().to(device)
         else:
             action = np.random.randint(0, env.ACTION_SPACE_VALUES)
 
