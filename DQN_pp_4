@@ -265,14 +265,14 @@ optimizer = optim.Adam(agent.parameters())              #初始化优化器
 
 episode_rewards = []                                    #初始化总reward
 model_save_avg_reward = -200
-
+epsilon = epsilon_start
 
 #开始训练
 for episode in range(EPISODES):
     obs = env.reset()
     done = False
     episode_reward = 0
-    epsilon = epsilon_start
+    
 
     while not done:
         if np.random.random() > epsilon:                #选择action
