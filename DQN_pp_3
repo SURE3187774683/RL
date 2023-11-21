@@ -16,15 +16,15 @@ style.use('ggplot')
 memory_capacity = 200        #经验池的大小
 batch_size = 30             #每次从经验池中取出的个数
 gamma = 0.99                #折扣因子
-lr = 1e-1                   #学习率(步长)
-
+lr = 1e-3                   #学习率(步长)
+SHOW_EVERY = 500
 epsilon_start = 1.0         #epsilon的初始值
 epsilon_end = 0.1          #epsilon的终止值
 epsilon_decay = 0.9995      #epsilon的缩减速率
 
-num_steps=3000              #总训练次数
+EPISODE_N = 5000              #总训练次数
 visualize = False              #是否观看回放
-env_move = True                #env是否变化
+env_move = False                #env是否变化
 ##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
@@ -84,9 +84,9 @@ class Cube:
 
 
 class envCube:  # 生成环境类
-    SIZE = 50           #地图大小
-    NUM_PLAYERS = 6     # player的数量
-    NUM_ENEMIES = 100   # enemy的数量
+    SIZE = 20           #地图大小
+    NUM_PLAYERS = 4     # player的数量
+    NUM_ENEMIES = 90   # enemy的数量
 
     OBSERVATION_SPACE_VALUES = ((2+2*NUM_ENEMIES)*NUM_PLAYERS,)  # state的数量
     ACTION_SPACE_VALUES = 4*NUM_PLAYERS #action的数量
@@ -94,7 +94,7 @@ class envCube:  # 生成环境类
 
     FOOD_REWARD = 25
     ENEMY_PENALITY = -300
-    MOVE_PENALITY = -50
+    MOVE_PENALITY = -1
 
     # 创建一个字典，用于存放agent的RGB
     d = {1: (255, 0, 0),  # blue
@@ -222,9 +222,6 @@ class Model(nn.Module):
         x = self.output(x)
         return x
 
-
-
-
 class DQN(nn.Module):       #定义了深度神经网络模型,用于构建当前q_net和目标q_net
     def __init__(self, input_shape, nb_actions):
         super(DQN, self).__init__()
@@ -255,8 +252,9 @@ class ReplayMemory:     #经验回放缓存
         return len(self.memory)
 
 class DQNAgent:
-    average_rewards = []  # 用于保存每个回合的平均奖励
+    episode_rewards = []
     loss_value = 0
+    average_rewards = 0
     losses = []  # 用于保存每一步的损失值
     def __init__(self, nb_states, nb_actions, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay):       #生成agent的参数
 
@@ -322,15 +320,14 @@ class DQNAgent:
     def update_target_model(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
         
-    def train(self, env, num_steps, visualize, verbose):    #训练agent
+    def train(self, env, EPISODE_N, visualize, verbose):    #训练agent
+        
         state = env.reset()     #重置环境
 
         episode_reward = 0      #记录当次训练的reward
-        total_reward = 0        #记录总训练次数
-        episode_count = 0       # 新增的变量用于保存游戏的总数
         
         
-        for step in range(num_steps):
+        for episode in range(EPISODE_N):
             action = self.select_action(state)              #选择action
             next_state, reward, done = env.step(action)     #游戏走一步
             episode_reward += reward                        #累加当次训练的reward
@@ -338,28 +335,25 @@ class DQNAgent:
             
             self.push_transition(state, action, reward, next_state, done)   #将当前状态放入经验池
             self.update_model()
+            self.episode_rewards.append(episode_reward)
             
             if done:
                 state = env.reset()
-                episode_count += 1
-                average_reward = episode_reward / episode_count
-                DQNAgent.average_rewards.append(average_reward)
-
+                episode_reward += reward
                 if verbose == 1:        #当verbose为1时，输出游戏回合数和平均奖励
                     
-                    print(f"Step: {step}, Epsilon:{self.epsilon}")
-                    print(f"### Average Reward: {average_reward}")
+                    print(f"Episode: {episode}, Epsilon:{self.epsilon}")
+                    print(f"### Average Reward: {np.mean(self.episode_rewards)}")
+                    self.average_rewards = np.mean(self.episode_rewards)
                 episode_reward = 0
 
                 if verbose == 2:        #当verbose为2时，输出游戏回合数和每轮奖励
-                    print(f"Step: {step}, Episode Reward: {episode_reward}")
+                    print(f"Etep: {episode}, Episode Reward: {self.episode_rewards}")
                 episode_reward = 0
-            
-                
             else:
                 state = next_state
                 
-            if step % 100 == 0:
+            if episode % 100 == 0:
                 self.update_target_model()
                 
             if visualize:
@@ -376,15 +370,16 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
         fig, (ax1, ax2) = plt.subplots(2, 1)
 
         # 绘制平滑后的奖励曲线
-        smoothed_rewards = np.convolve(DQNAgent.average_rewards, kernel, mode='valid')
-        ax1.plot(range(window_size, window_size + len(smoothed_rewards)), smoothed_rewards)
+        smoothed_rewards = np.convolve(DQNAgent.episode_rewards, np.ones(
+    (SHOW_EVERY,))/SHOW_EVERY, mode='valid')
+        ax1.plot(range(len(smoothed_rewards)), smoothed_rewards)
         ax1.set_xlabel('Episode')
         ax1.set_ylabel('Average Reward')
         ax1.set_title('Smoothed Average Reward per Episode')
 
         # 绘制平滑后的损失曲线
         smoothed_loss = np.convolve(DQNAgent.losses, kernel, mode='valid')
-        smoothed_loss = smoothed_loss[30:]
+        #
         ax2.plot(range(30, 30 + len(smoothed_loss)), smoothed_loss)
         ax2.set_xlabel('Step')
         ax2.set_ylabel('Loss')
@@ -400,6 +395,6 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
 env = envCube()
 model = build_model(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES)   #建立以state数量为输入，action数量为输出的神经网络
 agent = DQNAgent(env.OBSERVATION_SPACE_VALUES[0], env.ACTION_SPACE_VALUES, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay)
-agent.train(env, num_steps, visualize, verbose=1)        #训练agent
+agent.train(env, EPISODE_N, visualize, verbose=1)        #训练agent
 show_table(True)
 #图表展示训练效果
