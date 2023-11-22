@@ -13,18 +13,21 @@ from matplotlib import style
 style.use('ggplot')
 
 ##########################################################################
-memory_capacity = 200        #经验池的大小
-batch_size = 30             #每次从经验池中取出的个数
-gamma = 0.99                #折扣因子
-lr = 1e-3                   #学习率(步长)
-SHOW_EVERY = 500
-epsilon_start = 1.0         #epsilon的初始值
-epsilon_end = 0.1          #epsilon的终止值
-epsilon_decay = 0.9995      #epsilon的缩减速率
+STEP_N  = 500000                 #总训练步数
+memory_capacity = 1000          #经验池的大小
+batch_size = 50                 #每次从经验池中取出的个数
+gamma = 0.99                    #折扣因子
+lr = 1e-3                       #学习率(步长)
 
-EPISODE_N = 20000              #总训练次数
+epsilon_start = 1.0             #epsilon的初始值
+epsilon_end = 0.1              #epsilon的终止值
+epsilon_decay = 0.995          #epsilon的缩减速率
+
 visualize = False              #是否观看回放
 env_move = False                #env是否变化
+verbose=1                       #调整日志模式
+MAX_STEP = 200                  #每局最大步数
+SHOW_EVERY = int(STEP_N/400)     #表格平滑窗口
 ##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
@@ -84,15 +87,15 @@ class Cube:
 
 
 class envCube:  # 生成环境类
-    SIZE = 20           #地图大小
-    NUM_PLAYERS = 4     # player的数量
-    NUM_ENEMIES = 90   # enemy的数量
+    SIZE = 5           #地图大小
+    NUM_PLAYERS = 1     # player的数量
+    NUM_ENEMIES = 1   # enemy的数量
 
     OBSERVATION_SPACE_VALUES = ((2+2*NUM_ENEMIES)*NUM_PLAYERS,)  # state的数量
-    ACTION_SPACE_VALUES = 4*NUM_PLAYERS #action的数量
+    ACTION_SPACE_VALUES = 9*NUM_PLAYERS #action的数量
     RETURN_IMAGE = False
 
-    FOOD_REWARD = 25
+    FOOD_REWARD = 200
     ENEMY_PENALITY = -300
     MOVE_PENALITY = -1
 
@@ -158,10 +161,11 @@ class envCube:  # 生成环境类
                     new_observation += (self.players[i] - self.enemies[j])
 # 判断player和enemy是否重叠
         equal_p_e = False
-        for i in range(self.NUM_PLAYERS):        
+        for i in range(self.NUM_PLAYERS):           #定义奖励机制
             for j in range(self.NUM_ENEMIES):
                 if self.players[i] == self.enemies[j]:
                     equal_p_e = True
+
             if self.players[i] == self.food:
                 reward = self.FOOD_REWARD
 
@@ -174,7 +178,7 @@ class envCube:  # 生成环境类
         #所有玩家被吃掉/都到达/超过200步，游戏结束
         for i in range(self.NUM_PLAYERS):
             for j in range(self.NUM_ENEMIES):
-                if self.players[i] == self.food or self.players[i] == self.enemies[j] or self.episode_step >= 200:
+                if self.players[i] == self.food or self.players[i] == self.enemies[j] or self.episode_step >= MAX_STEP:
                     done = True
 
         return new_observation, reward, done
@@ -199,7 +203,6 @@ class envCube:  # 生成环境类
         img = Image.fromarray(env, 'RGB')
         return img
     
-
 ########################################################################
 def build_model(input_shape, output_shape):
     model = Model(input_shape, output_shape)
@@ -254,7 +257,6 @@ class ReplayMemory:     #经验回放缓存
 class DQNAgent:
     episode_rewards = []
     loss_value = 0
-    average_rewards = 0
     losses = []  # 用于保存每一步的损失值
     def __init__(self, nb_states, nb_actions, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay):       #生成agent的参数
 
@@ -320,40 +322,40 @@ class DQNAgent:
     def update_target_model(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
         
-    def train(self, env, EPISODE_N, visualize, verbose):    #训练agent
+    def train(self, env, STEP_N, visualize, verbose):    #训练agent
         
         state = env.reset()     #重置环境
 
         episode_reward = 0      #记录当次训练的reward
+        episode = 0             #记录当前局数
         
-        
-        for episode in range(EPISODE_N):
+        for step in range(STEP_N):
             action = self.select_action(state)              #选择action
             next_state, reward, done = env.step(action)     #游戏走一步
             episode_reward += reward                        #累加当次训练的reward
+            
             self.losses.append(self.loss_value)
-            
-            self.push_transition(state, action, reward, next_state, done)   #将当前状态放入经验池
-            self.update_model()
-            self.episode_rewards.append(episode_reward)
-            
-            if done:
-                state = env.reset()
-                episode_reward += reward
-                if verbose == 1:        #当verbose为1时，输出游戏回合数和平均奖励
-                    
-                    print(f"Episode: {episode}, Epsilon:{self.epsilon}")
-                    print(f"### Average Reward: {np.mean(self.episode_rewards)}")
-                    self.average_rewards = np.mean(self.episode_rewards)
-                episode_reward = 0
+            self.push_transition(state, action, reward, next_state, done)   #将当前状态放入经验池       
 
-                if verbose == 2:        #当verbose为2时，输出游戏回合数和每轮奖励
-                    print(f"Etep: {episode}, Episode Reward: {self.episode_rewards}")
-                episode_reward = 0
+            if done:
+                episode += 1                                    #当前局数加一
+                state = env.reset()
+                self.update_model()                             #更新model
+
+                self.episode_rewards.append(episode_reward)     #收集所有训练累计的reward
+                episode_reward = 0                              #每局奖励清零
+                
+                if verbose == 1:        #输出平均奖励
+                    print(f"Episode: {episode}       Step: {step}        Epsilon:{self.epsilon}")
+                    print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
+
+                if verbose == 2:        #输出每轮游戏的奖励
+                    print(f"Step: {step}, Epsilon:{self.epsilon}")
+                    print(f"### Episode Reward: {self.episode_rewards[-1]}")
             else:
                 state = next_state
                 
-            if episode % 100 == 0:
+            if step % 100 == 0:
                 self.update_target_model()
                 
             if visualize:
@@ -374,8 +376,8 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
     (SHOW_EVERY,))/SHOW_EVERY, mode='valid')
         ax1.plot(range(len(smoothed_rewards)), smoothed_rewards)
         ax1.set_xlabel('Episode')
-        ax1.set_ylabel('Average Reward')
-        ax1.set_title('Smoothed Average Reward per Episode')
+        ax1.set_ylabel('Episode rewards')
+        ax1.set_title('Smoothed Episode rewards per Episode')
 
         # 绘制平滑后的损失曲线
         smoothed_loss = np.convolve(DQNAgent.losses, kernel, mode='valid')
@@ -395,6 +397,6 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
 env = envCube()
 model = build_model(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES)   #建立以state数量为输入，action数量为输出的神经网络
 agent = DQNAgent(env.OBSERVATION_SPACE_VALUES[0], env.ACTION_SPACE_VALUES, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay)
-agent.train(env, EPISODE_N, visualize, verbose=1)        #训练agent
+agent.train(env, STEP_N, visualize, verbose)        #训练agent
 show_table(True)
 #图表展示训练效果
