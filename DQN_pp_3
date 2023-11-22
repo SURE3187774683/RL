@@ -13,7 +13,7 @@ from matplotlib import style
 style.use('ggplot')
 
 ##########################################################################
-STEP_N  = 500000                 #总训练步数
+EPISODE_N = 20000               #总训练局数
 memory_capacity = 1000          #经验池的大小
 batch_size = 50                 #每次从经验池中取出的个数
 gamma = 0.99                    #折扣因子
@@ -21,13 +21,15 @@ lr = 1e-3                       #学习率(步长)
 
 epsilon_start = 1.0             #epsilon的初始值
 epsilon_end = 0.1              #epsilon的终止值
-epsilon_decay = 0.995          #epsilon的缩减速率
+epsilon_decay = 0.9995          #epsilon的缩减速率
 
-visualize = False              #是否观看回放
+
+#########################################################################
+visualize = False               #是否观看回放
 env_move = False                #env是否变化
-verbose=1                       #调整日志模式
+verbose=1                       #调整日志模式（1——平均游戏得分；2——每局游戏得分）
 MAX_STEP = 200                  #每局最大步数
-SHOW_EVERY = int(STEP_N/400)     #表格平滑窗口
+SHOW_EVERY = EPISODE_N          #表格平滑窗口
 ##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
@@ -87,9 +89,9 @@ class Cube:
 
 
 class envCube:  # 生成环境类
-    SIZE = 5           #地图大小
-    NUM_PLAYERS = 1     # player的数量
-    NUM_ENEMIES = 1   # enemy的数量
+    SIZE = 20           #地图大小
+    NUM_PLAYERS = 4     # player的数量
+    NUM_ENEMIES = 2   # enemy的数量
 
     OBSERVATION_SPACE_VALUES = ((2+2*NUM_ENEMIES)*NUM_PLAYERS,)  # state的数量
     ACTION_SPACE_VALUES = 9*NUM_PLAYERS #action的数量
@@ -322,14 +324,16 @@ class DQNAgent:
     def update_target_model(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
         
-    def train(self, env, STEP_N, visualize, verbose):    #训练agent
+    def train(self, env, visualize, verbose):    #训练agent
         
         state = env.reset()     #重置环境
 
         episode_reward = 0      #记录当次训练的reward
         episode = 0             #记录当前局数
+        step = 0                #初始化当前步数
         
-        for step in range(STEP_N):
+        while episode < EPISODE_N:
+            step += 1                                       #游戏步数加一
             action = self.select_action(state)              #选择action
             next_state, reward, done = env.step(action)     #游戏走一步
             episode_reward += reward                        #累加当次训练的reward
@@ -344,13 +348,14 @@ class DQNAgent:
 
                 self.episode_rewards.append(episode_reward)     #收集所有训练累计的reward
                 episode_reward = 0                              #每局奖励清零
+                step = 0                                        #每局步数清零
                 
                 if verbose == 1:        #输出平均奖励
-                    print(f"Episode: {episode}       Step: {step}        Epsilon:{self.epsilon}")
+                    print(f"Episode: {episode}        Epsilon:{self.epsilon}")
                     print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
 
                 if verbose == 2:        #输出每轮游戏的奖励
-                    print(f"Step: {step}, Epsilon:{self.epsilon}")
+                    print(f"Step: {episode}, Epsilon:{self.epsilon}")
                     print(f"### Episode Reward: {self.episode_rewards[-1]}")
             else:
                 state = next_state
@@ -397,6 +402,6 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
 env = envCube()
 model = build_model(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES)   #建立以state数量为输入，action数量为输出的神经网络
 agent = DQNAgent(env.OBSERVATION_SPACE_VALUES[0], env.ACTION_SPACE_VALUES, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay)
-agent.train(env, STEP_N, visualize, verbose)        #训练agent
+agent.train(env,visualize, verbose)        #训练agent
 show_table(True)
 #图表展示训练效果
