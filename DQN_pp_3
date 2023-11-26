@@ -1,4 +1,4 @@
-# 第三版：用pytorch代替q_table,multi agent,multi enemy
+# 第三版：用pytorch代替q_table,agent同一个action
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,7 +13,7 @@ from matplotlib import style
 style.use('ggplot')
 
 ##########################################################################
-EPISODE_N = 1000000                       #总训练局数
+EPISODE_N = 2000                       #总训练局数
 memory_capacity = 2000                  #经验池的大小
 batch_size = 500                         #每次从经验池中取出的个数
 gamma = 0.9                            #折扣因子
@@ -23,9 +23,9 @@ epsilon_start = 0.5                     #epsilon的初始值
 epsilon_end = 0.5                       #epsilon的终止值
 epsilon_decay = 0.995                  #epsilon的缩减速率
 #########################################################################
-visualize = False                       #是否观看回放
+visualize = True                       #是否观看回放
 env_move = False                        #env是否变化
-verbose = 1                             #调整日志模式（1——平均游戏得分；2——每局游戏得分）
+verbose = 2                             #调整日志模式（1——平均游戏得分；2——每局游戏得分）
 MAX_STEP = 200                          #每局最大步数
 SHOW_EVERY = int(EPISODE_N*0.01)         #表格平滑窗口
 ##########################################################################
@@ -93,7 +93,7 @@ class envCube:  # 生成环境类
     distances = 0       #记录agent和food的距离之和
 
 
-    OBSERVATION_SPACE_VALUES = ((2+2*NUM_ENEMIES)*NUM_PLAYERS,)  # state的数量
+    OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
     ACTION_SPACE_VALUES = 9*NUM_PLAYERS #action的数量
     RETURN_IMAGE = False
 
@@ -114,8 +114,8 @@ class envCube:  # 生成环境类
     def reset(self):
         self.players = []            # 创建players列表
         for i in range(self.NUM_PLAYERS):
-            player = Cube(self.SIZE)        # 创建player
-            self.players.append(player)
+            self.player = Cube(self.SIZE)        # 创建player
+            self.players.append(self.player)
 
         self.food = Cube(self.SIZE)         # 创建food
         for i in range(self.NUM_PLAYERS):   
@@ -125,25 +125,25 @@ class envCube:  # 生成环境类
         self.enemies = []                   # 创建enemy
         for i in range(self.NUM_PLAYERS):
             for j in range(self.NUM_ENEMIES):
-                enemy = Cube(self.SIZE)
-                while enemy == self.players[i] or enemy == self.food or enemy in self.enemies:
-                    enemy = Cube(self.SIZE)
-                self.enemies.append(enemy)
+                self.enemy = Cube(self.SIZE)
+                while self.enemy == self.players[i] or self.enemy == self.food or self.enemy in self.enemies:
+                    self.enemy = Cube(self.SIZE)
+                self.enemies.append(self.enemy)
 
         if self.RETURN_IMAGE:               #通过图像获取state
-            observation = np.array(self.get_image())
+            state = np.array(self.get_image())
         else:
-                observation = ()
+                state = ()
                 for i in range(self.NUM_PLAYERS):
-                    observation += (self.players[i] - self.food)
+                    state += (self.players[i] - self.food)
 
-                    self.distances = np.linalg.norm(observation, ord=1)     #计算agent和food的距离
+                    self.distances = np.linalg.norm(state, ord=1)     #计算agent和food的距离
                     # 考虑和每个enemy的位置关系
                     for j in range(self.NUM_ENEMIES):
-                        observation += (self.players[i] - self.enemies[j])
+                        state += (self.players[i] - self.enemies[j])
         self.episode_step = 0
 
-        return observation
+        return state
 
     def step(self, action):
         self.episode_step += 1   
@@ -218,7 +218,7 @@ class Model(nn.Module):
     def __init__(self, input_shape, output_shape):      #生成一个state数量输入，action数量输出的神经网络
         super(Model, self).__init__()
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(input_shape[0], 32)
+        self.fc1 = nn.Linear(input_shape, 32)
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(32, 32)
         self.output = nn.Linear(32, output_shape)
@@ -265,8 +265,8 @@ class DQNAgent:
     episode_rewards = []
     loss_value = 0
     losses = []  # 用于保存每一步的损失值
-    def __init__(self, nb_states, nb_actions, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay):       #生成agent的参数
 
+    def __init__(self, nb_states, nb_actions, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay):       #生成agent的参数
         self.nb_states = nb_states
         self.nb_actions = nb_actions  
         self.batch_size = batch_size
@@ -360,7 +360,7 @@ class DQNAgent:
                     print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
 
                 if verbose == 2:        #输出每轮游戏的奖励
-                    print(f"Step: {episode}, Epsilon:{self.epsilon}")
+                    print(f"Episode: {episode}, Epsilon:{self.epsilon}")
                     print(f"### Episode Reward: {self.episode_rewards[-1]}")
             else:
                 state = next_state
@@ -395,6 +395,6 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
 ###############################################################################################################
 env = envCube()
 model = build_model(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES)   #建立以state数量为输入，action数量为输出的神经网络
-agent = DQNAgent(env.OBSERVATION_SPACE_VALUES[0], env.ACTION_SPACE_VALUES, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay)
+agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay)
 agent.train(env,visualize, verbose) 
 show_table(True)
