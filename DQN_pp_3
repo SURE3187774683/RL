@@ -13,15 +13,15 @@ from matplotlib import style
 style.use('ggplot')
 
 ##########################################################################
-EPISODE_N = 5000                       #总训练局数
+EPISODE_N = 10000                       #总训练局数
 memory_capacity = 2000                  #经验池的大小
 batch_size = 500                         #每次从经验池中取出的个数
 gamma = 0.9                            #折扣因子
 lr = 1e-3                               #学习率(步长)
 
-epsilon_start = 0.5                     #epsilon的初始值
-epsilon_end = 0.5                       #epsilon的终止值
-epsilon_decay = 0.995                  #epsilon的缩减速率
+epsilon_start = 1                     #epsilon的初始值
+epsilon_end = 0.01                       #epsilon的终止值
+epsilon_decay = 0.995                 #epsilon的缩减速率
 #########################################################################
 visualize = False                       #是否观看回放
 env_move = False                        #env是否变化
@@ -89,7 +89,7 @@ class Cube:
 class envCube:  # 生成环境类
     SIZE = 10           #地图大小
     NUM_PLAYERS = 1     # player的数量
-    NUM_ENEMIES = 50   # enemy的数量
+    NUM_ENEMIES = 3   # enemy的数量
     distances = 0       #记录agent和food的距离之和
 
 
@@ -387,7 +387,7 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
         ax2.set_xlabel('Step')
         ax2.set_ylabel('Loss')
         ax2.set_title('Loss per Step')
-
+        
         plt.tight_layout()
         plt.show()
 
