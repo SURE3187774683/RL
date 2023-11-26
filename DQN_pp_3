@@ -1,4 +1,4 @@
-# 第三版：用pytorch代替q_table,agent同一个action
+# 第三版：用pytorch代替q_table,multi agent,multi enemy
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -13,7 +13,7 @@ from matplotlib import style
 style.use('ggplot')
 
 ##########################################################################
-EPISODE_N = 2000                       #总训练局数
+EPISODE_N = 5000                       #总训练局数
 memory_capacity = 2000                  #经验池的大小
 batch_size = 500                         #每次从经验池中取出的个数
 gamma = 0.9                            #折扣因子
@@ -23,11 +23,11 @@ epsilon_start = 0.5                     #epsilon的初始值
 epsilon_end = 0.5                       #epsilon的终止值
 epsilon_decay = 0.995                  #epsilon的缩减速率
 #########################################################################
-visualize = True                       #是否观看回放
+visualize = False                       #是否观看回放
 env_move = False                        #env是否变化
-verbose = 2                             #调整日志模式（1——平均游戏得分；2——每局游戏得分）
+verbose = 1                             #调整日志模式（1——平均游戏得分；2——每局游戏得分）
 MAX_STEP = 200                          #每局最大步数
-SHOW_EVERY = int(EPISODE_N*0.01)         #表格平滑窗口
+SHOW_EVERY = int(EPISODE_N*0.09)         #表格平滑窗口
 ##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
@@ -88,13 +88,13 @@ class Cube:
 
 class envCube:  # 生成环境类
     SIZE = 10           #地图大小
-    NUM_PLAYERS = 2     # player的数量
-    NUM_ENEMIES = 1   # enemy的数量
+    NUM_PLAYERS = 1     # player的数量
+    NUM_ENEMIES = 50   # enemy的数量
     distances = 0       #记录agent和food的距离之和
 
 
     OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
-    ACTION_SPACE_VALUES = 9*NUM_PLAYERS #action的数量
+    ACTION_SPACE_VALUES = 9 #action的数量
     RETURN_IMAGE = False
 
     FOOD_REWARD = 200
@@ -377,20 +377,19 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
         fig, (ax1, ax2) = plt.subplots(2, 1)
         # 绘制平滑后的奖励曲线
         smoothed_rewards = np.convolve(DQNAgent.episode_rewards, np.ones
-    (SHOW_EVERY,)/SHOW_EVERY, mode='valid')
+    (SHOW_EVERY)/SHOW_EVERY, mode='valid')
         ax1.plot(range(len(smoothed_rewards)), smoothed_rewards)
         ax1.set_xlabel('Episode')
         ax1.set_ylabel('Episode rewards')
         ax1.set_title('Smoothed Episode rewards per Episode')
    
-        window_size = 10        # 定义卷积核      
-        smoothed_loss = np.convolve(DQNAgent.losses, np.ones(window_size) / window_size, mode='valid')      # 绘制平滑后的损失曲线
-        ax2.plot(range(30, 30 + len(smoothed_loss)), smoothed_loss)
+        ax2.plot(range(30, 30 + len(DQNAgent.losses)), DQNAgent.losses)
         ax2.set_xlabel('Step')
         ax2.set_ylabel('Loss')
-        ax2.set_title('Smoothed Average Loss per Step')     
-        plt.tight_layout()  # 调整子图之间的间距
-        plt.show()  # 显示图形
+        ax2.set_title('Loss per Step')
+
+        plt.tight_layout()
+        plt.show()
 
 ###############################################################################################################
 env = envCube()
