@@ -1,5 +1,4 @@
 # 第四版：加入和目标的距离作为奖惩标准
-# 第三版：用pytorch代替q_table,multi agent,multi enemy
 import torch
 import torch.nn as nn
 import torch.optim as optim
