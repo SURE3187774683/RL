@@ -1,10 +1,9 @@
-# 第四版：将图像作为state,用cnn
+# 第四版：加入和目标的距离作为奖惩标准
+# 第三版：用pytorch代替q_table,multi agent,multi enemy
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-############################################
-############################################
 from collections import deque
 import random
 import numpy as np
@@ -15,20 +14,21 @@ from matplotlib import style
 style.use('ggplot')
 
 ##########################################################################
-REPLAY_MEMORY_SIZE = 20000
-MINI_REPLAY_MEMORY_SIZE = 64
-UPDATE_TARGET_MODEL_EVERY = 20
-EPISODES = 10000
-DISCOUNT = 0.95
+EPISODE_N = 100000                       #总训练局数
+memory_capacity = 2000                  #经验池的大小
+batch_size = 500                         #每次从经验池中取出的个数
+gamma = 0.9                            #折扣因子
+lr = 1e-3                               #学习率(步长)
 
-epsilon_start = 1.0         #epsilon的初始值
-epsilon_end = 0.1          #epsilon的终止值
-epsilon_decay = 0.995      #epsilon的缩减速率
-
-visualize = False
-SHOW_EVERY = 20
-STATISTICS_EVERY = 10
-env_move = False                #env是否变化
+epsilon_start = 0.5                     #epsilon的初始值
+epsilon_end = 0.5                       #epsilon的终止值
+epsilon_decay = 0.995                 #epsilon的缩减速率
+#########################################################################
+visualize = True                       #是否观看回放
+env_move = False                        #env是否变化
+verbose = 1                             #调整日志模式（1——平均游戏得分；2——每局游戏得分）
+MAX_STEP = 200                          #每局最大步数
+SHOW_EVERY = int(EPISODE_N*0.09)         #表格平滑窗口
 ##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
@@ -90,16 +90,19 @@ class Cube:
 class envCube:  # 生成环境类
     SIZE = 10           #地图大小
     NUM_PLAYERS = 1     # player的数量
-    NUM_ENEMIES = 1     # enemy的数量
+    NUM_ENEMIES = 5   # enemy的数量
+    
 
-    OBSERVATION_SPACE_VALUES = (SIZE, SIZE, 3)  # state的数量
-    ACTION_SPACE_VALUES = 9*NUM_PLAYERS #action的数量
-    RETURN_IMAGE = True
+    OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
+    ACTION_SPACE_VALUES = 9 #action的数量
+    RETURN_IMAGE = False
 
     FOOD_REWARD = 100
     ENEMY_PENALITY = -10
     MOVE_PENALITY = -0.1
-
+    CLOSER_REWARD = 0.2
+    FARER_PENALITY = -0.2
+    STAY_REWARD = 0.1
 
     # 创建一个字典，用于存放agent的RGB
     d = {1: (255, 0, 0),  # blue
@@ -111,10 +114,11 @@ class envCube:  # 生成环境类
     ENEMY_N = 3
 
     def reset(self):
+        self.old_distances = 0
         self.players = []            # 创建players列表
         for i in range(self.NUM_PLAYERS):
-            player = Cube(self.SIZE)        # 创建player
-            self.players.append(player)
+            self.player = Cube(self.SIZE)        # 创建player
+            self.players.append(self.player)
 
         self.food = Cube(self.SIZE)         # 创建food
         for i in range(self.NUM_PLAYERS):   
@@ -124,23 +128,28 @@ class envCube:  # 生成环境类
         self.enemies = []                   # 创建enemy
         for i in range(self.NUM_PLAYERS):
             for j in range(self.NUM_ENEMIES):
-                enemy = Cube(self.SIZE)
-                while enemy == self.players[i] or enemy == self.food or enemy in self.enemies:
-                    enemy = Cube(self.SIZE)
-                self.enemies.append(enemy)
+                self.enemy = Cube(self.SIZE)
+                while self.enemy == self.players[i] or self.enemy == self.food or self.enemy in self.enemies:
+                    self.enemy = Cube(self.SIZE)
+                self.enemies.append(self.enemy)
 
         if self.RETURN_IMAGE:               #通过图像获取state
-            observation = np.array(self.get_image())
+            state = np.array(self.get_image())
         else:
-                observation = ()
+                state = ()
+                distances = []       #记录每个agent和food的距离之和
+                
+
                 for i in range(self.NUM_PLAYERS):
-                    observation += (self.players[i] - self.food)
+                    state += (self.players[i] - self.food)
+
+                    distances = np.linalg.norm(state, ord=1)     #计算agent和food的距离
                     # 考虑和每个enemy的位置关系
                     for j in range(self.NUM_ENEMIES):
-                        observation += (self.players[i] - self.enemies[j])
+                        state += (self.players[i] - self.enemies[j])
         self.episode_step = 0
 
-        return observation
+        return state
 
     def step(self, action):
         self.episode_step += 1   
@@ -154,32 +163,52 @@ class envCube:  # 生成环境类
 
         if self.RETURN_IMAGE:
             new_observation = np.array(self.get_image())
+            
         else:   
-            new_observation = ()      
+            new_observation = () 
+            new_distances = [] #下一步的每个agent和food的距离之和
+
             for i in range(self.NUM_PLAYERS):
                 new_observation += (self.players[i] - self.food)
                     # 考虑和每个enemy的位置关系
+
+                new_distances = np.linalg.norm(new_observation, ord=1)     #计算agent和food的距离
+
                 for j in range(self.NUM_ENEMIES):
                     new_observation += (self.players[i] - self.enemies[j])
+
+            
 # 判断player和enemy是否重叠
         equal_p_e = False
-        for i in range(self.NUM_PLAYERS):        
+
+        if self.old_distances>new_distances:
+            reward = self.CLOSER_REWARD
+        elif self.old_distances<new_distances:
+            reward = self.FARER_PENALITY
+        else:
+            reward = self.STAY_REWARD
+        
+        self.old_distances = new_distances
+
+        for i in range(self.NUM_PLAYERS):           #定义奖励机制
             for j in range(self.NUM_ENEMIES):
                 if self.players[i] == self.enemies[j]:
                     equal_p_e = True
+
             if self.players[i] == self.food:
-                reward = self.FOOD_REWARD
+                reward += self.FOOD_REWARD
 
             elif equal_p_e:
-                reward = self.ENEMY_PENALITY
+                reward += self.ENEMY_PENALITY
 
             else:
-                reward = self.MOVE_PENALITY
+                reward += self.MOVE_PENALITY
         done = False
+
         #所有玩家被吃掉/都到达/超过200步，游戏结束
         for i in range(self.NUM_PLAYERS):
             for j in range(self.NUM_ENEMIES):
-                if self.players[i] == self.food or self.players[i] == self.enemies[j] or self.episode_step >= 200:
+                if self.players[i] == self.food or self.players[i] == self.enemies[j] or self.episode_step >= MAX_STEP:
                     done = True
 
         return new_observation, reward, done
@@ -204,118 +233,200 @@ class envCube:  # 生成环境类
         img = Image.fromarray(env, 'RGB')
         return img
     
-
 ########################################################################
+def build_model(input_shape, output_shape):
+    model = Model(input_shape, output_shape)
+    return model
 
-class DQNAgent(nn.Module):
-    def __init__(self, input_shape, output_shape):
-        super().__init__()
-        self.input_shape = input_shape
-        self.output_shape = output_shape
-
-        self.conv1 = nn.Conv2d(input_shape[0], 32, kernel_size=1, stride=1)
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=3, stride=1)
-        self.fc1 = nn.Linear(self.feature_size(), 32)
-        self.fc2 = nn.Linear(32, output_shape)
+class Model(nn.Module):
+    def __init__(self, input_shape, output_shape):      #生成一个state数量输入，action数量输出的神经网络
+        super(Model, self).__init__()
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Linear(input_shape, 32)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(32, 32)
+        self.output = nn.Linear(32, output_shape)
 
     def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = x.view(x.size(0), -1)
-        x = F.relu(self.fc1(x))
+        x = self.flatten(x)
+        x = self.fc1(x)
+        x = self.relu(x)
         x = self.fc2(x)
+        x = self.relu(x)
+        x = self.output(x)
         return x
 
-    def feature_size(self):
-        return self.conv2(self.conv1(torch.zeros(1, *self.input_shape))).view(1, -1).size(1)
+class DQN(nn.Module):       #定义了深度神经网络模型,用于构建当前q_net和目标q_net
+    def __init__(self, input_shape, nb_actions):
+        super(DQN, self).__init__()
+        self.fc1 = nn.Linear(input_shape, 32)
+        self.fc2 = nn.Linear(32, 32)
+        self.fc3 = nn.Linear(32, nb_actions)
+        
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
 
-class ReplayMemory:
-    def __init__(self, capacity):
+class ReplayMemory:     #经验回放缓存
+    def __init__(self, capacity):   #随机生成capacity大小的经验池
         self.capacity = capacity
         self.memory = deque(maxlen=capacity)
-
-    def push(self, transition):
-        self.memory.append(transition)
-
-    def sample(self, batch_size):               #从经验池取出数据
+        
+    def push(self, state, action, reward, next_state, done):    #将经验存储到缓存中
+        self.memory.append((state, action, reward, next_state, done))
+    
+    def sample(self, batch_size):                               #从缓存中随机采样一批经验
         batch = random.sample(self.memory, batch_size)
-        obs_batch, action_batch, reward_batch, next_obs_batch, done_batch = zip(*batch)
-        return (
-            torch.FloatTensor(np.array(obs_batch)).to(device),
-            torch.LongTensor(np.array(action_batch)).to(device),
-            torch.FloatTensor(np.array(reward_batch)).to(device),
-            torch.FloatTensor(np.array(next_obs_batch)).to(device),
-            torch.FloatTensor(np.array(done_batch)).to(device)
-        )
-
-    def __len__(self):
+        states, actions, rewards, next_states, dones = zip(*batch)
+        return states, actions, rewards, next_states, dones
+    
+    def __len__(self):      #当前缓存中的经验数量
         return len(self.memory)
 
-env = envCube()
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+class DQNAgent:
+    episode_rewards = []
+    loss_value = 0
+    losses = []  # 用于保存每一步的损失值
 
-agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES).to(device)
-target_agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES).to(device)
+    def __init__(self, nb_states, nb_actions, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay):       #生成agent的参数
+        self.nb_states = nb_states
+        self.nb_actions = nb_actions  
+        self.batch_size = batch_size
+        self.gamma = gamma
+        self.epsilon = epsilon_start
+        self.epsilon_end = epsilon_end
+        self.epsilon_decay = epsilon_decay
 
-target_agent.load_state_dict(agent.state_dict())
-target_agent.eval()
+        self.memory = ReplayMemory(memory_capacity)     #随机生成50000容量的经验池
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
+        self.policy_net = DQN(nb_states, nb_actions).to(self.device)    #构建当前q_net
+        self.target_net = DQN(nb_states, nb_actions).to(self.device)    #构建目标q_net
+        self.target_net.load_state_dict(self.policy_net.state_dict())   #使两个q_net结构相同
+        self.target_net.eval()                                          #将目标网络设为评估模式
+        
+        self.optimizer = optim.Adam(self.policy_net.parameters(), lr)  #建立优化器来更新策略网络的权重
+        self.loss_fn = nn.MSELoss()                                     #定义损失函数为均方误差损失函数
+        
+    def select_action(self, state):     
+        if random.random() < self.epsilon:      #当随机值小于epsilon时随机选择action
+            return random.randrange(self.nb_actions)
+        else:                                   #当随机值大于epsilon时选择值最大的action
+            with torch.no_grad():
+                state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+                q_values = self.policy_net(state)
+                return q_values.argmax().item()
+    
+    def update_epsilon(self):               
+        self.epsilon = max(self.epsilon_end, self.epsilon * self.epsilon_decay)
+        
+    def push_transition(self, state, action, reward, next_state, done):
+        self.memory.push(state, action, reward, next_state, done)
+    
+    def update_model(self):     #将采样的经验转换为 PyTorch 张量
+        if len(self.memory) < self.batch_size:
+            return
+        
+        states, actions, rewards, next_states, dones = self.memory.sample(self.batch_size)
+        
+        states = torch.FloatTensor(states).to(self.device)
+        actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
+        rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
+        next_states = torch.FloatTensor(next_states).to(self.device)
+        dones = torch.BoolTensor(dones).unsqueeze(1).to(self.device)
+        
+        q_values = self.policy_net(states).gather(1, actions)
+        next_q_values = self.target_net(next_states).max(1)[0].unsqueeze(1)
+        expected_q_values = rewards + (~dones) * self.gamma * next_q_values
+        
+        loss = self.loss_fn(q_values, expected_q_values)
+        self.loss_value = loss.item()
 
-replay_memory = ReplayMemory(REPLAY_MEMORY_SIZE)        #初始化经验池
-optimizer = optim.Adam(agent.parameters())              #初始化优化器
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        
+        self.update_epsilon()
+        
+    def update_target_model(self):
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+        
+    def train(self, env, visualize, verbose):    #训练agent
+        
+        state = env.reset()     #重置环境
 
-episode_rewards = []                                    #初始化总reward
-model_save_avg_reward = -200
+        episode_reward = 0      #记录当次训练的reward
+        episode = 0             #记录当前局数
+        step = 0                #初始化当前步数
+        
+        while episode < EPISODE_N:
+            step += 1                                       #游戏步数加一
+            action = self.select_action(state)              #选择action
+            next_state, reward, done = env.step(action)     #游戏走一步
+            episode_reward += reward                        #累加当次训练的reward
+            
+            self.losses.append(self.loss_value)
+            self.push_transition(state, action, reward, next_state, done)   #将当前状态放入经验池       
+
+            if done:
+                episode += 1                                    #当前局数加一
+                state = env.reset()
+                self.update_model()                             #更新model
 
 
-#开始训练
-for episode in range(EPISODES):
-    obs = env.reset()
-    done = False
-    episode_reward = 0
-    epsilon = epsilon_start
 
-    while not done:
-        if np.random.random() > epsilon:                #选择action
-            action = torch.argmax(agent(torch.FloatTensor(obs).unsqueeze(0))).item().to(device)
-        else:
-            action = np.random.randint(0, env.ACTION_SPACE_VALUES)
+                if episode_reward>80:
+                    print("WIN!")
+                else:
+                    print("LOSE")
 
-        new_obs, reward, done = env.step(action)        #游戏走一步
-        transition = (obs, action, reward, new_obs, done)
-        replay_memory.push(transition)                  #将当前transition放入经验池
+                self.episode_rewards.append(episode_reward)     #收集所有训练累计的reward
+                episode_reward = 0                              #每局奖励清零
+                step = 0                                        #每局步数清零
+                
+                 
 
-        obs = new_obs                                   #更新state
-        episode_reward += reward                        #累加当前一局游戏的reward
+                if verbose == 1:        #输出平均奖励
+                    print(f"Episode: {episode}        Epsilon:{self.epsilon}")
+                    print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
 
-        if len(replay_memory) > MINI_REPLAY_MEMORY_SIZE:    #当小经验池满了
-            obs_batch, action_batch, reward_batch, next_obs_batch, done_batch = replay_memory.sample(MINI_REPLAY_MEMORY_SIZE)   #从经验池取出数据
-
-            current_q_values = agent(obs_batch)
-            current_q_values = current_q_values.gather(1, action_batch.unsqueeze(1)).squeeze(1)     #提取与给定动作相对应的 Q 值
-
-            next_q_values = target_agent(next_obs_batch).max(1)[0].detach()
-            target_q_values = reward_batch + DISCOUNT * next_q_values * (1 - done_batch)    #提取目标的 Q 值
-
-            loss = F.mse_loss(current_q_values, target_q_values)    #计算损失函数
-
-            optimizer.zero_grad()           #更新参数，减小loss
-            loss.backward()
-            optimizer.step()
-
-        if visualize:
+                if verbose == 2:        #输出每轮游戏的奖励
+                    print(f"Episode: {episode}, Epsilon:{self.epsilon}")
+                    print(f"### Episode Reward: {self.episode_rewards[-1]}")
+            else:
+                state = next_state
+                
+            if step % 100 == 0:
+                self.update_target_model()
+                
+            if visualize and episode>3000:
                 env.render()
-    if episode % STATISTICS_EVERY == 0 and episode > 0:
-        avg_reward = sum(episode_rewards[-STATISTICS_EVERY:]) / STATISTICS_EVERY
-        max_reward = max(episode_rewards[-STATISTICS_EVERY:])
-        min_reward = min(episode_rewards[-STATISTICS_EVERY:])
-        print(f'avg_reward:{avg_reward}, max_reward:{max_reward}, min_reward:{min_reward}')
 
-    avg_reward = sum(episode_rewards[-STATISTICS_EVERY:]) / STATISTICS_EVERY
-    print(f'episode:{episode}, avg_reward:{avg_reward}, epsilon:{epsilon:7.4f}')
-    episode_rewards.append(episode_reward)
+def show_table(if_show):        #是否要展示episode和average_reward的关系
+    if if_show==True:
+        # 设置子图布局
+        fig, (ax1, ax2) = plt.subplots(2, 1)
+        # 绘制平滑后的奖励曲线
+        smoothed_rewards = np.convolve(DQNAgent.episode_rewards, np.ones
+    (SHOW_EVERY)/SHOW_EVERY, mode='valid')
+        ax1.plot(range(len(smoothed_rewards)), smoothed_rewards)
+        ax1.set_xlabel('Episode')
+        ax1.set_ylabel('Episode rewards')
+        ax1.set_title('Smoothed Episode rewards per Episode')
+   
+        ax2.plot(range(30, 30 + len(DQNAgent.losses)), DQNAgent.losses)
+        ax2.set_xlabel('Step')
+        ax2.set_ylabel('Loss')
+        ax2.set_title('Loss per Step')
+        
+        plt.tight_layout()
+        plt.show()
 
-    epsilon *= epsilon_decay
-    epsilon = max(epsilon, epsilon_end)
-
-plt.plot([i for i in range(len(episode_rewards))], episode_rewards)
-plt.show()
+###############################################################################################################
+env = envCube()
+model = build_model(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES)   #建立以state数量为输入，action数量为输出的神经网络
+agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay)
+agent.train(env,visualize, verbose) 
+show_table(True)
