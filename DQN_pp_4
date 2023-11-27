@@ -19,7 +19,7 @@ batch_size = 500                         #每次从经验池中取出的个数
 gamma = 0.9                            #折扣因子
 lr = 1e-3                               #学习率(步长)
 
-epsilon_start = 1                     #epsilon的初始值
+epsilon_start = 2                     #epsilon的初始值
 epsilon_end = 0.001                       #epsilon的终止值
 epsilon_decay = 0.995                 #epsilon的缩减速率
 #########################################################################
@@ -88,8 +88,8 @@ class Cube:
 
 class envCube:  # 生成环境类
     SIZE = 10           #地图大小
-    NUM_PLAYERS = 2     # player的数量
-    NUM_ENEMIES = 4   # enemy的数量
+    NUM_PLAYERS = 1     # player的数量
+    NUM_ENEMIES = 5   # enemy的数量
     
 
     OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
