@@ -13,21 +13,21 @@ from matplotlib import style
 style.use('ggplot')
 
 ##########################################################################
-EPISODE_N = 100000                       #总训练局数
+EPISODE_N = 10000                       #总训练局数
 memory_capacity = 2000                  #经验池的大小
 batch_size = 500                         #每次从经验池中取出的个数
 gamma = 0.9                            #折扣因子
 lr = 1e-3                               #学习率(步长)
 
-epsilon_start = 0.5                     #epsilon的初始值
-epsilon_end = 0.5                       #epsilon的终止值
+epsilon_start = 1                     #epsilon的初始值
+epsilon_end = 0.001                       #epsilon的终止值
 epsilon_decay = 0.995                 #epsilon的缩减速率
 #########################################################################
 visualize = True                       #是否观看回放
 env_move = False                        #env是否变化
 verbose = 1                             #调整日志模式（1——平均游戏得分；2——每局游戏得分）
 MAX_STEP = 200                          #每局最大步数
-SHOW_EVERY = int(EPISODE_N*0.09)         #表格平滑窗口
+SHOW_EVERY = int(EPISODE_N*0.01)         #表格平滑窗口
 ##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
@@ -88,8 +88,8 @@ class Cube:
 
 class envCube:  # 生成环境类
     SIZE = 10           #地图大小
-    NUM_PLAYERS = 1     # player的数量
-    NUM_ENEMIES = 5   # enemy的数量
+    NUM_PLAYERS = 2     # player的数量
+    NUM_ENEMIES = 4   # enemy的数量
     
 
     OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
@@ -136,14 +136,9 @@ class envCube:  # 生成环境类
             state = np.array(self.get_image())
         else:
                 state = ()
-                distances = []       #记录每个agent和food的距离之和
-                
-
                 for i in range(self.NUM_PLAYERS):
                     state += (self.players[i] - self.food)
 
-                    distances = np.linalg.norm(state, ord=1)     #计算agent和food的距离
-                    # 考虑和每个enemy的位置关系
                     for j in range(self.NUM_ENEMIES):
                         state += (self.players[i] - self.enemies[j])
         self.episode_step = 0
@@ -400,7 +395,7 @@ class DQNAgent:
             if step % 100 == 0:
                 self.update_target_model()
                 
-            if visualize and episode>3000:
+            if visualize and episode>9000:
                 env.render()
 
 def show_table(if_show):        #是否要展示episode和average_reward的关系
