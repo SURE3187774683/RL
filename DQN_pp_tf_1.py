@@ -7,6 +7,36 @@ import pickle
 import matplotlib.pyplot as plt
 from matplotlib import style
 style.use('ggplot')
+
+from keras.models import Sequential             #构建神经网络的库函数
+from keras.layers import Dense,Conv2D,Flatten   #导入全连接层、卷积层、平滑层     
+from collections import deque                   #构建双向链表
+import random
+
+import tensorflow as tf
+import os
+from keras.callbacks import TensorBoard
+
+##########################################################################
+EPISODES = 200                      #训练的总局数
+REPLAY_MEMORY_SIZE = 30             #经验池的大小
+MINI_REPLAY_MEMORY_SIZE = 10        #从经验池取出的transition个数
+DISCOUNT = 0.95                     #折扣回报率
+UPDATE_TARGET_MODE_EVERY = 10       #model更新频率
+MAX_STEP = 200                      #每局最大步数
+
+EPISILO_START = 1
+EPI_DECAY = 0.995
+EPISILO_END = 0.001
+
+SHOW_EVERY = 10                     #render的显示频率
+STATISTICS_EVERY = 10               #记录在tensorboard的频率
+##########################################################################
+VISUALIZE = True                    #是否观看回放
+ENV_MOVE = False                    #env是否变化
+VERBOSE = 1                         #调整日志模式（0\1\2）
+##########################################################################
+
 class Cube:
     def __init__(self,size):
         self.size = size
@@ -102,8 +132,9 @@ class envCube:
     def step(self,action):
         self.episode_step += 1
         self.player.action(action)
-        self.food.move()
-        self.enemy.move()
+        if ENV_MOVE:
+            self.food.move()
+            self.enemy.move()
 
         if self.RETURN_IMAGE:
             new_observation = np.array(self.get_image())
@@ -118,7 +149,7 @@ class envCube:
             reward = self.MOVE_PENALITY
 
         done = False
-        if self.player == self.food or self.player == self.enemy or self.episode_step>=200:
+        if self.player == self.food or self.player == self.enemy or self.episode_step>=MAX_STEP:
             done = True
         
         return new_observation,reward,done
@@ -149,10 +180,6 @@ class envCube:
             with open(qtable_name,'rb') as f:
                 q_table=pickle.load(f)
         return q_table
-        
-import tensorflow as tf
-import os
-from keras.callbacks import TensorBoard
 
 class ModifiedTensorBoard(TensorBoard):     #调用tensorboard
 
@@ -188,24 +215,6 @@ class ModifiedTensorBoard(TensorBoard):     #调用tensorboard
                 tf.summary.scalar(key, value, step = self.step)
                 self.writer.flush()
 
-
-
-env = envCube()
-
-EPISODES = 200                  #训练的局数
-REPLAY_MEMORY_SIZE = 30        #经验池的大小
-MINI_REPLAY_MEMORY_SIZE = 10    #从经验池取出的transition个数
-DISCOUNT = 0.95                 #折扣回报率
-UPDATE_TARGET_MODE_EVERY = 10    #每隔20局更新一次model
-
-from keras.models import Sequential             #构建神经网络的库函数
-from keras.layers import Dense,Conv2D,Flatten   #导入全连接层、卷积层、平滑层     
-from collections import deque                   #构建双向链表
-import random
-import matplotlib.pyplot as plt                 #导入绘制曲线的依赖库
-from matplotlib import style
-style.use('ggplot')
-
 class DQNAgent():
     def __init__(self):
         self.model = self.create_model()        #构建自己的model
@@ -216,7 +225,6 @@ class DQNAgent():
         self.update_target_model_counter = 0        #模型更新次数
 
         self.tensorboard = ModifiedTensorBoard(log_dir=f'./logs/dqn_model_{int(time.time())}')
-
 
     def create_model(self):                     #构建神经网络模型
         model = Sequential()
@@ -255,7 +263,7 @@ class DQNAgent():
             q_values_current_index[action] = yt
             y.append(q_values_current_index)
 
-        self.model.fit(np.array(X),np.array(y),batch_size=MINI_REPLAY_MEMORY_SIZE,shuffle=False,verbose=0,callbacks=[self.tensorboard]if terminal_state else None)
+        self.model.fit(np.array(X),np.array(y),batch_size=MINI_REPLAY_MEMORY_SIZE,shuffle=False,verbose=VERBOSE,callbacks=[self.tensorboard]if terminal_state else None)
 
         if terminal_state and self.update_target_model_counter%UPDATE_TARGET_MODE_EVERY==0:      #每五轮游戏结束后更新model
             self.update_target_model_counter += 1   
@@ -267,13 +275,11 @@ class DQNAgent():
     def action_q_value_predict(self,obs):               #根据当前状态预测所有action对应的q_value
         return self.model.predict(np.array(obs).reshape(-1,*obs.shape))[0]
 
-EPI_DECAY = 0.995
-MIN_EPISILON = 0.001
-SHOW_EVERY = 10
-STATISTICS_EVERY = 10
 
+env = envCube()
 agent = DQNAgent()
-episilon = 1
+
+episilon = EPISILO_START
 episode_rewards = []
 model_save_avg_reward = -200
 
@@ -296,7 +302,7 @@ for episode in range(EPISODES):
 
         episode_reward += reward
 
-        if episode&SHOW_EVERY==0:
+        if episode&SHOW_EVERY==0 and VISUALIZE:
             env.render()
 
     if episode % STATISTICS_EVERY == 0 and episode >0:
@@ -316,7 +322,7 @@ for episode in range(EPISODES):
 
 
     episilon *= EPI_DECAY
-    episilon = max(episilon,MIN_EPISILON)
+    episilon = max(episilon,EPISILO_END)
 
 plt.plot([i for i in range(len(episode_rewards))],episode_rewards)
 plt.show()
