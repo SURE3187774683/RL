@@ -1,5 +1,4 @@
-#第一版，tensorflow搭建cnn，单个agent的pathplanning
-
+#第一版 基于tf的单个agent路径规划，基于图像位置和cnn
 import numpy as np
 import cv2
 from PIL import Image
@@ -150,13 +149,12 @@ class envCube:
             with open(qtable_name,'rb') as f:
                 q_table=pickle.load(f)
         return q_table
-# Own Tensorboard class
-# Here is an updated working code for TensorFlow 2.4.1, just copy and paste it as it is :
+        
 import tensorflow as tf
 import os
 from keras.callbacks import TensorBoard
 
-class ModifiedTensorBoard(TensorBoard):
+class ModifiedTensorBoard(TensorBoard):     #调用tensorboard
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -189,132 +187,147 @@ class ModifiedTensorBoard(TensorBoard):
             for key, value in stats.items():
                 tf.summary.scalar(key, value, step = self.step)
                 self.writer.flush()
+
+
+
 env = envCube()
 
-REPLAY_MEMORY_SIZE = 100
-MINI_REPLAY_MEMORY_SIZE = 64
-UPDATE_TARGET_MODE_EVERY = 20
-EPISODES = 50000
-DISCOUNT = 0.95
-from keras.models import Sequential
-from keras.layers import Dense,Conv2D,Flatten
-from collections import deque
+EPISODES = 200                  #训练的局数
+REPLAY_MEMORY_SIZE = 30        #经验池的大小
+MINI_REPLAY_MEMORY_SIZE = 10    #从经验池取出的transition个数
+DISCOUNT = 0.95                 #折扣回报率
+UPDATE_TARGET_MODE_EVERY = 10    #每隔20局更新一次model
+
+from keras.models import Sequential             #构建神经网络的库函数
+from keras.layers import Dense,Conv2D,Flatten   #导入全连接层、卷积层、平滑层     
+from collections import deque                   #构建双向链表
 import random
+import matplotlib.pyplot as plt                 #导入绘制曲线的依赖库
+from matplotlib import style
+style.use('ggplot')
+
 class DQNAgent():
     def __init__(self):
-        self.model = self.create_model()
-        self.target_model = self.create_model()
-        self.target_model.set_weights(self.model.get_weights())
-        
-        self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)
-        self.update_target_modle_counter = 0
-        
+        self.model = self.create_model()        #构建自己的model
+        self.target_model = self.create_model() #构建target_model
+        self.target_model.set_weights(self.model.get_weights()) #将自己的model的权重复制给target_model
+
+        self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)              #构建经验池
+        self.update_target_model_counter = 0        #模型更新次数
+
         self.tensorboard = ModifiedTensorBoard(log_dir=f'./logs/dqn_model_{int(time.time())}')
-        
-    
-    def create_model(self):
+
+
+    def create_model(self):                     #构建神经网络模型
         model = Sequential()
-        model.add(Conv2D(32,(3,3),activation='relu',input_shape=env.OBSERVATION_SPACE_VALUES))
-        model.add(Conv2D(32,(3,3),activation='relu'))
-        model.add(Flatten())
-        model.add(Dense(32,activation='relu'))
-        model.add(Dense(env.ACTION_SPACE_VALUES,activation='linear'))
-        model.compile(loss='mse',optimizer='Adam',metrics=['accuracy'])
+        model.add(Conv2D(32,(3,3),activation='relu',input_shape=env.OBSERVATION_SPACE_VALUES))  #添加卷积层
+        model.add(Conv2D(32,(3,3),activation='relu'))   #添加卷积层
+        model.add(Flatten())                            #添加平滑层
+        model.add(Dense(32,activation='relu'))                 #添加连接层
+        model.add(Dense(env.ACTION_SPACE_VALUES,activation='linear'))  #添加输出层
+        model.compile(loss='mse',optimizer='Adam',metrics=['accuracy']) #指定损失函数(均方误差（Mean Squared Error，MSE）)、优化器(动量优化和自适应学习率)和评价函数作为编译器
         return model
-    
+
     def train(self,terminal_state):
-        if len(self.replay_memory) < REPLAY_MEMORY_SIZE:
-            return
+        if len(self.replay_memory) < REPLAY_MEMORY_SIZE:     #让经验池积累到一定量
+            return 
         
         minibatch = random.sample(self.replay_memory,MINI_REPLAY_MEMORY_SIZE)
-        
+
         X = []
         y = []
-        
+
         obs_current = np.array([transition[0] for transition in minibatch])/255
         q_values_current = self.model.predict(obs_current)
-        
         X = obs_current
-        
+
         obs_new = np.array([transition[3] for transition in minibatch])/255
-        q_values_future = self.target_model.predict(obs_new)
-        
+        q_values_future = self.model.predict(obs_new)
+
         for index,(obs,action,reward,new_obs,done) in enumerate(minibatch):
-#             X.append(obs)
+            #X.append(obs)
             if not done:
-                yt = reward + DISCOUNT * np.max(q_values_future[index])
+                yt = reward + DISCOUNT * np.max(np.max(q_values_future[index]))
             else:
                 yt = reward
             
             q_values_current_index = q_values_current[index]
             q_values_current_index[action] = yt
             y.append(q_values_current_index)
-        
-        self.model.fit(np.array(X),np.array(y),batch_size=MINI_REPLAY_MEMORY_SIZE,shuffle=False,verbose=0,callbacks=[self.tensorboard] if terminal_state else None)
-        
-        if terminal_state :
-            self.update_target_modle_counter += 1
-        
-        if self.update_target_modle_counter > UPDATE_TARGET_MODE_EVERY:
-            self.target_model.set_weights(self.model.get_weights())
-            self.update_target_modle_counter = 0
-    
+
+        self.model.fit(np.array(X),np.array(y),batch_size=MINI_REPLAY_MEMORY_SIZE,shuffle=False,verbose=0,callbacks=[self.tensorboard]if terminal_state else None)
+
+        if terminal_state and self.update_target_model_counter%UPDATE_TARGET_MODE_EVERY==0:      #每五轮游戏结束后更新model
+            self.update_target_model_counter += 1   
+            self.target_model.set_weights(self.model.get_weights()) 
+
     def update_replay_memory(self,transition):
         return self.replay_memory.append(transition)
-    
-    def action_q_values_predict(self,obs):
+
+    def action_q_value_predict(self,obs):               #根据当前状态预测所有action对应的q_value
         return self.model.predict(np.array(obs).reshape(-1,*obs.shape))[0]
+
 EPI_DECAY = 0.995
 MIN_EPISILON = 0.001
 SHOW_EVERY = 10
-STATITICS_EVERY = 10
+STATISTICS_EVERY = 10
 
-import matplotlib.pyplot as plt
-from matplotlib import style
-style.use('ggplot')
 agent = DQNAgent()
 episilon = 1
 episode_rewards = []
 model_save_avg_reward = -200
+
 for episode in range(EPISODES):
     obs = env.reset()
     done = False
     episode_reward = 0
     while not done:
         if np.random.random() > episilon:
-            action = np.argmax(agent.action_q_values_predict(obs))
+            action = np.argmax(agent.action_q_value_predict(obs))   #选择对应q_value最大的action
         else:
             action = np.random.randint(0,env.ACTION_SPACE_VALUES)
-        
-        new_obs,reward,done= env.step(action)
+
+        new_obs,reward,done = env.step(action)
         transition = (obs,action,reward,new_obs,done)
         agent.update_replay_memory(transition)
         agent.train(done)
-        
+
         obs = new_obs
-        
+
         episode_reward += reward
-        
-        #if episode % SHOW_EVERY ==0:
-            #env.render()
-            
-    if episode % STATITICS_EVERY ==0 and episode > 0:
-        avg_reward = sum(episode_rewards[-STATITICS_EVERY:])/len(episode_rewards[-STATITICS_EVERY:])
-        max_reward = max(episode_rewards[-STATITICS_EVERY:])
-        min_reward = min(episode_rewards[-STATITICS_EVERY:])
-        print(f'avg_reward:{avg_reward},max_reward{max_reward},min_reward:{min_reward}')
-        
+
+        if episode&SHOW_EVERY==0:
+            env.render()
+
+    if episode % STATISTICS_EVERY == 0 and episode >0:
+        avg_reward = sum(episode_rewards[-STATISTICS_EVERY:])/len(episode_rewards[-STATISTICS_EVERY:])
+        max_reward = max(episode_rewards[-STATISTICS_EVERY:])
+        min_reward = min(episode_rewards[-STATISTICS_EVERY:])
+        print(f'avg_reward:{avg_reward},max_reward:{max_reward},min_reward:{min_reward}')
+
         agent.tensorboard.update_stats(avg_reward=avg_reward,max_reward=max_reward,min_reward=min_reward,episilon=episilon)
-        
-        if avg_reward > model_save_avg_reward:
-            agent.model.save(f'./modes/{avg_reward:7.3f}_{int(time.time())}.model')
-            model_save_avg_reward = avg_reward    
-            
+
+        if avg_reward > model_save_avg_reward:          #当每十局的reward超过预设值时，将模型保存下来
+            agent.model.save(f'./models/{avg_reward:7.3f}_{int(time.time())}.model')
+            model_save_avg_reward = avg_reward
+
     print(f'episode:{episode},episode_reward:{episode_reward},episilon:{episilon:7.4f}')
     episode_rewards.append(episode_reward)
-    
+
+
     episilon *= EPI_DECAY
     episilon = max(episilon,MIN_EPISILON)
-    
+
 plt.plot([i for i in range(len(episode_rewards))],episode_rewards)
 plt.show()
+
+
+
+
+
+
+
+
+
+
+
