@@ -19,10 +19,10 @@ from keras.callbacks import TensorBoard
 
 ##########################################################################
 EPISODES = 200                      #训练的总局数
-REPLAY_MEMORY_SIZE = 30             #经验池的大小
-MINI_REPLAY_MEMORY_SIZE = 10        #从经验池取出的transition个数
+REPLAY_MEMORY_SIZE = 5             #经验池的大小
+MINI_REPLAY_MEMORY_SIZE = 3        #从经验池取出的transition个数
 DISCOUNT = 0.95                     #折扣回报率
-UPDATE_TARGET_MODE_EVERY = 10       #model更新频率
+UPDATE_TARGET_MODE_EVERY = 2       #model更新频率
 MAX_STEP = 200                      #每局最大步数
 
 EPISILO_START = 1
@@ -32,7 +32,7 @@ EPISILO_END = 0.001
 SHOW_EVERY = 10                     #render的显示频率
 STATISTICS_EVERY = 10               #记录在tensorboard的频率
 ##########################################################################
-VISUALIZE = True                    #是否观看回放
+VISUALIZE = False                    #是否观看回放
 ENV_MOVE = False                    #env是否变化
 VERBOSE = 1                         #调整日志模式（0\1\2）
 ##########################################################################
@@ -96,7 +96,6 @@ class envCube:
     SIZE = 10
     OBSERVATION_SPACE_VALUES = (SIZE,SIZE,3)
     ACTION_SPACE_VALUES = 9
-    RETURN_IMAGE = True
     
     FOOD_REWARD = 25
     ENEMY_PENALITY = -300
@@ -120,10 +119,8 @@ class envCube:
         while self.enemy == self.player or self.enemy == self.food:
             self.enemy = Cube(self.SIZE)
         
-        if self.RETURN_IMAGE:
-            observation = np.array(self.get_image())
-        else:
-            observation = (self.player - self.food)+(self.player - self.enemy) 
+
+        observation = np.array(self.get_image())
         
         self.episode_step = 0
         
@@ -136,10 +133,7 @@ class envCube:
             self.food.move()
             self.enemy.move()
 
-        if self.RETURN_IMAGE:
-            new_observation = np.array(self.get_image())
-        else:
-            new_observation = (self.player - self.food)+(self.player - self.enemy)
+        new_observation = np.array(self.get_image())
 
         if self.player == self.food :
             reward = self.FOOD_REWARD
@@ -168,21 +162,8 @@ class envCube:
         img = Image.fromarray(env,'RGB')
         return img
 
-    def get_qtable(self,qtable_name=None):
-        if qtable_name is None:
-            q_table = {}
-            for x1 in range(-self.SIZE+1, self.SIZE):
-                for y1 in range(-self.SIZE+1, self.SIZE):
-                    for x2 in range(-self.SIZE+1, self.SIZE):
-                        for y2 in range(-self.SIZE+1, self.SIZE):
-                            q_table[(x1,y1,x2,y2)] = [np.random.uniform(-5,0) for i in range(self.ACTION_SPACE_VALUES)]
-        else:
-            with open(qtable_name,'rb') as f:
-                q_table=pickle.load(f)
-        return q_table
-
 class ModifiedTensorBoard(TensorBoard):     #调用tensorboard
-
+    
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.step = 1
@@ -224,38 +205,38 @@ class DQNAgent():
         self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)              #构建经验池
         self.update_target_model_counter = 0        #模型更新次数
 
-        self.tensorboard = ModifiedTensorBoard(log_dir=f'./logs/dqn_model_{int(time.time())}')
+        self.tensorboard = ModifiedTensorBoard(log_dir='./logs/dqn_model_{int(time.time())}')   #创建一个自定义的 TensorBoard 对象
 
-    def create_model(self):                     #构建神经网络模型
+    def create_model(self):                                             #构建神经网络模型
         model = Sequential()
         model.add(Conv2D(32,(3,3),activation='relu',input_shape=env.OBSERVATION_SPACE_VALUES))  #添加卷积层
-        model.add(Conv2D(32,(3,3),activation='relu'))   #添加卷积层
-        model.add(Flatten())                            #添加平滑层
-        model.add(Dense(32,activation='relu'))                 #添加连接层
-        model.add(Dense(env.ACTION_SPACE_VALUES,activation='linear'))  #添加输出层
+        model.add(Conv2D(32,(3,3),activation='relu'))                   #添加卷积层
+        model.add(Flatten())                                            #添加平滑层
+        model.add(Dense(32,activation='relu'))                          #添加连接层
+        model.add(Dense(env.ACTION_SPACE_VALUES,activation='linear'))   #添加输出层
         model.compile(loss='mse',optimizer='Adam',metrics=['accuracy']) #指定损失函数(均方误差（Mean Squared Error，MSE）)、优化器(动量优化和自适应学习率)和评价函数作为编译器
         return model
 
     def train(self,terminal_state):
-        if len(self.replay_memory) < REPLAY_MEMORY_SIZE:     #让经验池积累到一定量
+        if len(self.replay_memory) < REPLAY_MEMORY_SIZE:     #经验池容量少时不训练
             return 
         
-        minibatch = random.sample(self.replay_memory,MINI_REPLAY_MEMORY_SIZE)
+        minibatch = random.sample(self.replay_memory,MINI_REPLAY_MEMORY_SIZE)   #从经验池中取出若干个transition
 
         X = []
         y = []
 
-        obs_current = np.array([transition[0] for transition in minibatch])/255
-        q_values_current = self.model.predict(obs_current)
-        X = obs_current
+        obs_current = np.array([transition[0] for transition in minibatch])/255 #将一个transition中的obs拿出来，并将像素值缩放到 [0, 1] 范围内
+        q_values_current = self.model.predict(obs_current,verbose=0)          #用模型估计当前状态下的 Q 值
+        X = obs_current                                             #将当前obs放入X
 
-        obs_new = np.array([transition[3] for transition in minibatch])/255
-        q_values_future = self.model.predict(obs_new)
-
+        obs_new = np.array([transition[3] for transition in minibatch])/255     #将一个transition中的next_obs拿出来，并将像素值缩放到 [0, 1] 范围内
+        q_values_future = self.model.predict(obs_new,verbose=0)                #用模型估计将来状态下的 Q 值
+        
         for index,(obs,action,reward,new_obs,done) in enumerate(minibatch):
             #X.append(obs)
             if not done:
-                yt = reward + DISCOUNT * np.max(np.max(q_values_future[index]))
+                yt = reward + DISCOUNT * np.max(np.max(q_values_future[index])) #选取得到q_value最大的action作为动作
             else:
                 yt = reward
             
@@ -263,7 +244,7 @@ class DQNAgent():
             q_values_current_index[action] = yt
             y.append(q_values_current_index)
 
-        self.model.fit(np.array(X),np.array(y),batch_size=MINI_REPLAY_MEMORY_SIZE,shuffle=False,verbose=VERBOSE,callbacks=[self.tensorboard]if terminal_state else None)
+        self.model.fit(np.array(X),np.array(y),batch_size=MINI_REPLAY_MEMORY_SIZE,shuffle=False,verbose=0,callbacks=[self.tensorboard] if terminal_state else None)
 
         if terminal_state and self.update_target_model_counter%UPDATE_TARGET_MODE_EVERY==0:      #每五轮游戏结束后更新model
             self.update_target_model_counter += 1   
@@ -273,20 +254,20 @@ class DQNAgent():
         return self.replay_memory.append(transition)
 
     def action_q_value_predict(self,obs):               #根据当前状态预测所有action对应的q_value
-        return self.model.predict(np.array(obs).reshape(-1,*obs.shape))[0]
+        return self.model.predict(np.array(obs).reshape(-1,*obs.shape),verbose=0)[0]
 
+env = envCube()                 #创建环境
+agent = DQNAgent()              #创建agent
 
-env = envCube()
-agent = DQNAgent()
-
-episilon = EPISILO_START
-episode_rewards = []
-model_save_avg_reward = -200
+episilon = EPISILO_START        #给episilon赋初值
+episode_rewards = []            #创建数组记录每局的reward
+model_save_avg_reward = -200    #优秀的模型批判指标
 
 for episode in range(EPISODES):
     obs = env.reset()
     done = False
     episode_reward = 0
+
     while not done:
         if np.random.random() > episilon:
             action = np.argmax(agent.action_q_value_predict(obs))   #选择对应q_value最大的action
@@ -294,9 +275,10 @@ for episode in range(EPISODES):
             action = np.random.randint(0,env.ACTION_SPACE_VALUES)
 
         new_obs,reward,done = env.step(action)
-        transition = (obs,action,reward,new_obs,done)
-        agent.update_replay_memory(transition)
-        agent.train(done)
+
+        transition = (obs,action,reward,new_obs,done)               #将参数放入transition
+        agent.update_replay_memory(transition)                      #将当前transition放入经验池
+        agent.train(done)                                           #训练agent
 
         obs = new_obs
 
@@ -317,7 +299,7 @@ for episode in range(EPISODES):
             agent.model.save(f'./models/{avg_reward:7.3f}_{int(time.time())}.model')
             model_save_avg_reward = avg_reward
 
-    print(f'episode:{episode},episode_reward:{episode_reward},episilon:{episilon:7.4f}')
+    print(f'episode:{episode}      episode_reward:{episode_reward}      episilon:{episilon:7.4f}     ')
     episode_rewards.append(episode_reward)
 
 
