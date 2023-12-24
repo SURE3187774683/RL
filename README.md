@@ -1,10 +1,10 @@
 # DQN for Path-Planning
 
 ## Fream
-### Ubuntu-22.04
-### tensorflow-2.15.0
-### pytorch-2.1.1
-### python-3.9.18
+#### Ubuntu-22.04
+#### tensorflow-2.15.0
+#### pytorch-2.1.1
+#### python-3.9.18
 
 ## Main work
 ### 1.本仓库自行创建了path planning的环境
