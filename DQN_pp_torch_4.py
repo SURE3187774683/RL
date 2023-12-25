@@ -14,20 +14,22 @@ style.use('ggplot')
 
 ##########################################################################
 EPISODE_N = 10000                       #总训练局数
-memory_capacity = 2000                  #经验池的大小
-batch_size = 500                         #每次从经验池中取出的个数
+REPLAY_MEMORY_SIZE = 2000                  #经验池的大小
+BATCH_SIZE = 500                         #每次从经验池中取出的个数
 gamma = 0.9                            #折扣因子
 lr = 1e-3                               #学习率(步长)
 
-epsilon_start = 2                     #epsilon的初始值
-epsilon_end = 0.001                       #epsilon的终止值
-epsilon_decay = 0.995                 #epsilon的缩减速率
+JUDGE_REWARD = 80                            #评价指标
+EPI_START = 2                     #epsilon的初始值
+EPI_END = 0.001                       #epsilon的终止值
+EPI_DECAY = 0.995                 #epsilon的缩减速率
 #########################################################################
-visualize = True                       #是否观看回放
-env_move = False                        #env是否变化
-verbose = 1                             #调整日志模式（1——平均游戏得分；2——每局游戏得分）
+VISUALIZE = True                       #是否观看回放
+ENV_MOVE = False                        #env是否变化
+VERBOSE = 1                             #调整日志模式（1——平均游戏得分；2——每局游戏得分）
 MAX_STEP = 200                          #每局最大步数
-SHOW_EVERY = int(EPISODE_N*0.01)         #表格平滑窗口
+SMOOTHNESS = int(EPISODE_N*0.01)         #表格平滑窗口
+SHOW_EVERY = 100                        #显示频率
 ##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
@@ -150,7 +152,7 @@ class envCube:  # 生成环境类
         for i in range(self.NUM_PLAYERS):
             self.players[i].action(action)
 
-        if env_move == True:
+        if ENV_MOVE == True:
             self.food.move()
             for enemy in self.enemies:
                 enemy.move()
@@ -271,8 +273,8 @@ class ReplayMemory:     #经验回放缓存
     def push(self, state, action, reward, next_state, done):    #将经验存储到缓存中
         self.memory.append((state, action, reward, next_state, done))
     
-    def sample(self, batch_size):                               #从缓存中随机采样一批经验
-        batch = random.sample(self.memory, batch_size)
+    def sample(self, BATCH_SIZE):                               #从缓存中随机采样一批经验
+        batch = random.sample(self.memory, BATCH_SIZE)
         states, actions, rewards, next_states, dones = zip(*batch)
         return states, actions, rewards, next_states, dones
     
@@ -284,16 +286,16 @@ class DQNAgent:
     loss_value = 0
     losses = []  # 用于保存每一步的损失值
 
-    def __init__(self, nb_states, nb_actions, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay):       #生成agent的参数
+    def __init__(self, nb_states, nb_actions, REPLAY_MEMORY_SIZE, BATCH_SIZE, gamma, EPI_START, EPI_END, epsilon_decay):       #生成agent的参数
         self.nb_states = nb_states
         self.nb_actions = nb_actions  
-        self.batch_size = batch_size
+        self.BATCH_SIZE = BATCH_SIZE
         self.gamma = gamma
-        self.epsilon = epsilon_start
-        self.epsilon_end = epsilon_end
+        self.epsilon = EPI_START
+        self.EPI_END = EPI_END
         self.epsilon_decay = epsilon_decay
 
-        self.memory = ReplayMemory(memory_capacity)     #随机生成50000容量的经验池
+        self.memory = ReplayMemory(REPLAY_MEMORY_SIZE)     #随机生成50000容量的经验池
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         self.policy_net = DQN(nb_states, nb_actions).to(self.device)    #构建当前q_net
@@ -314,16 +316,16 @@ class DQNAgent:
                 return q_values.argmax().item()
     
     def update_epsilon(self):               
-        self.epsilon = max(self.epsilon_end, self.epsilon * self.epsilon_decay)
+        self.epsilon = max(self.EPI_END, self.epsilon * self.epsilon_decay)
         
     def push_transition(self, state, action, reward, next_state, done):
         self.memory.push(state, action, reward, next_state, done)
     
     def update_model(self):     #将采样的经验转换为 PyTorch 张量
-        if len(self.memory) < self.batch_size:
+        if len(self.memory) < self.BATCH_SIZE:
             return
         
-        states, actions, rewards, next_states, dones = self.memory.sample(self.batch_size)
+        states, actions, rewards, next_states, dones = self.memory.sample(self.BATCH_SIZE)
         
         states = torch.FloatTensor(states).to(self.device)
         actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
@@ -369,18 +371,14 @@ class DQNAgent:
                 state = env.reset()
                 self.update_model()                             #更新model
 
-
-
-                if episode_reward>80:
+                if episode_reward>JUDGE_REWARD:
                     print("WIN!")
                 else:
                     print("LOSE")
 
                 self.episode_rewards.append(episode_reward)     #收集所有训练累计的reward
                 episode_reward = 0                              #每局奖励清零
-                step = 0                                        #每局步数清零
-                
-                 
+                step = 0                                        #每局步数清零              
 
                 if verbose == 1:        #输出平均奖励
                     print(f"Episode: {episode}        Epsilon:{self.epsilon}")
@@ -395,7 +393,7 @@ class DQNAgent:
             if step % 100 == 0:
                 self.update_target_model()
                 
-            if visualize and episode>9000:
+            if visualize and episode%SHOW_EVERY:
                 env.render()
 
 def show_table(if_show):        #是否要展示episode和average_reward的关系
@@ -404,7 +402,7 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
         fig, (ax1, ax2) = plt.subplots(2, 1)
         # 绘制平滑后的奖励曲线
         smoothed_rewards = np.convolve(DQNAgent.episode_rewards, np.ones
-    (SHOW_EVERY)/SHOW_EVERY, mode='valid')
+    (SMOOTHNESS)/SMOOTHNESS, mode='valid')
         ax1.plot(range(len(smoothed_rewards)), smoothed_rewards)
         ax1.set_xlabel('Episode')
         ax1.set_ylabel('Episode rewards')
@@ -421,6 +419,6 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
 ###############################################################################################################
 env = envCube()
 model = build_model(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES)   #建立以state数量为输入，action数量为输出的神经网络
-agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, memory_capacity, batch_size, gamma, epsilon_start, epsilon_end, epsilon_decay)
-agent.train(env,visualize, verbose) 
+agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, REPLAY_MEMORY_SIZE, BATCH_SIZE, gamma, EPI_START, EPI_END, EPI_DECAY)
+agent.train(env,VISUALIZE, VERBOSE) 
 show_table(True)
