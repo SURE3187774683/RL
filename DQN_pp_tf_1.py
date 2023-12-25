@@ -1,4 +1,5 @@
 #第一版 基于tf的单个agent路径规划，基于图像位置和cnn
+from sys import setprofile
 import numpy as np
 import cv2
 from PIL import Image
@@ -6,35 +7,34 @@ import time
 import pickle
 import matplotlib.pyplot as plt
 from matplotlib import style
+
 style.use('ggplot')
 
 from keras.models import Sequential             #构建神经网络的库函数
 from keras.layers import Dense,Conv2D,Flatten   #导入全连接层、卷积层、平滑层     
 from collections import deque                   #构建双向链表
 import random
-
-import tensorflow as tf
 import os
+import tensorflow as tf
 from keras.callbacks import TensorBoard
 
 ##########################################################################
-EPISODES = 200                      #训练的总局数
-REPLAY_MEMORY_SIZE = 5             #经验池的大小
-MINI_REPLAY_MEMORY_SIZE = 3        #从经验池取出的transition个数
-DISCOUNT = 0.95                     #折扣回报率
-UPDATE_TARGET_MODE_EVERY = 2       #model更新频率
-MAX_STEP = 200                      #每局最大步数
+EPISODES = 10000                            #训练的总局数
+REPLAY_MEMORY_SIZE = 2000                   #经验池的大小
+MINI_REPLAY_MEMORY_SIZE = 100               #从经验池取出的transition个数
+DISCOUNT = 0.95                             #折扣回报率
+UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
+STATISTICS_EVERY = 5                        #记录在tensorboard的频率
+MAX_STEP = 200                              #每局最大步数
+SHOW_EVERY = 10                             #render的显示频率
 
-EPISILO_START = 1
+EPISILON_START = 1                          #episilon
 EPI_DECAY = 0.995
-EPISILO_END = 0.001
-
-SHOW_EVERY = 10                     #render的显示频率
-STATISTICS_EVERY = 10               #记录在tensorboard的频率
+EPISILON_END = 0.001
 ##########################################################################
-VISUALIZE = False                    #是否观看回放
-ENV_MOVE = False                    #env是否变化
-VERBOSE = 1                         #调整日志模式（0\1\2）
+VISUALIZE = False                           #是否观看回放
+ENV_MOVE = False                            #env是否变化
+VERBOSE = 1                                 #调整日志模式（0\1\2）
 ##########################################################################
 
 class Cube:
@@ -119,7 +119,6 @@ class envCube:
         while self.enemy == self.player or self.enemy == self.food:
             self.enemy = Cube(self.SIZE)
         
-
         observation = np.array(self.get_image())
         
         self.episode_step = 0
@@ -194,7 +193,7 @@ class ModifiedTensorBoard(TensorBoard):     #调用tensorboard
         with self.writer.as_default():
             for key, value in stats.items():
                 tf.summary.scalar(key, value, step = self.step)
-                self.writer.flush()
+            self.writer.flush()
 
 class DQNAgent():
     def __init__(self):
@@ -203,7 +202,7 @@ class DQNAgent():
         self.target_model.set_weights(self.model.get_weights()) #将自己的model的权重复制给target_model
 
         self.replay_memory = deque(maxlen=REPLAY_MEMORY_SIZE)              #构建经验池
-        self.update_target_model_counter = 0        #模型更新次数
+        self.update_target_modle_counter = 0        #模型更新次数
 
         self.tensorboard = ModifiedTensorBoard(log_dir='./logs/dqn_model_{int(time.time())}')   #创建一个自定义的 TensorBoard 对象
 
@@ -246,9 +245,12 @@ class DQNAgent():
 
         self.model.fit(np.array(X),np.array(y),batch_size=MINI_REPLAY_MEMORY_SIZE,shuffle=False,verbose=0,callbacks=[self.tensorboard] if terminal_state else None)
 
-        if terminal_state and self.update_target_model_counter%UPDATE_TARGET_MODE_EVERY==0:      #每五轮游戏结束后更新model
-            self.update_target_model_counter += 1   
-            self.target_model.set_weights(self.model.get_weights()) 
+        if terminal_state :
+            self.update_target_modle_counter += 1
+        
+        if self.update_target_modle_counter > UPDATE_TARGET_MODE_EVERY:
+            self.target_model.set_weights(self.model.get_weights())
+            self.update_target_modle_counter = 0
 
     def update_replay_memory(self,transition):
         return self.replay_memory.append(transition)
@@ -256,10 +258,12 @@ class DQNAgent():
     def action_q_value_predict(self,obs):               #根据当前状态预测所有action对应的q_value
         return self.model.predict(np.array(obs).reshape(-1,*obs.shape),verbose=0)[0]
 
+
+
 env = envCube()                 #创建环境
 agent = DQNAgent()              #创建agent
 
-episilon = EPISILO_START        #给episilon赋初值
+episilon = EPISILON_START        #给episilon赋初值
 episode_rewards = []            #创建数组记录每局的reward
 model_save_avg_reward = -200    #优秀的模型批判指标
 
@@ -286,36 +290,27 @@ for episode in range(EPISODES):
 
         if episode&SHOW_EVERY==0 and VISUALIZE:
             env.render()
-
+    
+    episode_rewards.append(episode_reward)
     if episode % STATISTICS_EVERY == 0 and episode >0:
         avg_reward = sum(episode_rewards[-STATISTICS_EVERY:])/len(episode_rewards[-STATISTICS_EVERY:])
         max_reward = max(episode_rewards[-STATISTICS_EVERY:])
         min_reward = min(episode_rewards[-STATISTICS_EVERY:])
         print(f'avg_reward:{avg_reward},max_reward:{max_reward},min_reward:{min_reward}')
 
-        agent.tensorboard.update_stats(avg_reward=avg_reward,max_reward=max_reward,min_reward=min_reward,episilon=episilon)
+        agent.tensorboard.update_stats(avg_reward=avg_reward,max_reward=max_reward,min_reward=min_reward,episilon=episilon,step=episode)
+        episode+=1
 
-        if avg_reward > model_save_avg_reward:          #当每十局的reward超过预设值时，将模型保存下来
-            agent.model.save(f'./models/{avg_reward:7.3f}_{int(time.time())}.model')
+        if min_reward > model_save_avg_reward:          #当每十局的reward超过预设值时，将模型保存下来
+            agent.model.save(f'./models/{min_reward:7.3f}_{int(time.time())}.model')
             model_save_avg_reward = avg_reward
 
     print(f'episode:{episode}      episode_reward:{episode_reward}      episilon:{episilon:7.4f}     ')
-    episode_rewards.append(episode_reward)
+    
 
 
     episilon *= EPI_DECAY
-    episilon = max(episilon,EPISILO_END)
+    episilon = max(episilon,EPISILON_END)
 
 plt.plot([i for i in range(len(episode_rewards))],episode_rewards)
 plt.show()
-
-
-
-
-
-
-
-
-
-
-
