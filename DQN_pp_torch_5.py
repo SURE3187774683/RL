@@ -14,17 +14,17 @@ style.use('ggplot')
 
 ##########################################################################
 EPISODE_N = 10000                           #总训练局数
-REPLAY_MEMORY_SIZE = 2000                   #经验池的大小
-BATCH_SIZE = 100                            #每次从经验池中取出的个数
+REPLAY_MEMORY_SIZE = 100                   #经验池的大小
+BATCH_SIZE = 32                            #每次从经验池中取出的个数
 gamma = 0.95                                #折扣因子
 lr = 1e-3                                   #学习率(步长)
 
 JUDGE_REWARD = 80                           #评价指标
-EPI_START = 2                               #epsilon的初始值
+EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
 EPI_DECAY = 0.995                           #epsilon的缩减速率
 #########################################################################
-VISUALIZE = False                       #是否观看回放
+VISUALIZE = True                       #是否观看回放
 ENV_MOVE = False                        #env是否变化
 VERBOSE = 1                             #调整日志模式（1——平均游戏得分；2——每局游戏得分）
 MAX_STEP = 200                          #每局最大步数
@@ -92,7 +92,6 @@ class envCube:  # 生成环境类
     SIZE = 10           #地图大小
     NUM_PLAYERS = 1     # player的数量
     NUM_ENEMIES = 5   # enemy的数量
-    
 
     OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
     ACTION_SPACE_VALUES = 9 #action的数量
@@ -196,6 +195,18 @@ class envCube:  # 生成环境类
                     done = True
 
         return new_observation, reward, done
+    def get_image(self):
+        env = np.zeros((self.SIZE, self.SIZE, 3), dtype=np.uint8)
+        env[self.food.x][self.food.y] = self.d[self.FOOD_N]
+
+        for i in range(self.NUM_PLAYERS):        
+            env[self.players[i].x][self.players[i].y] = self.d[self.PLAYER_N]
+
+        for i in range(self.NUM_ENEMIES):
+            env[self.enemies[i].x][self.enemies[i].y] = self.d[self.ENEMY_N]
+
+        img = Image.fromarray(env, 'RGB')
+        return img
 
     def render(self):
         img = self.get_image()
@@ -349,7 +360,7 @@ class DQNAgent:
             if step % 100 == 0:
                 self.update_target_model()
                 
-            if visualize and episode%SHOW_EVERY:
+            if visualize and episode%SHOW_EVERY==0:
                 env.render()
 
 def show_table(if_show):        #是否要展示episode和average_reward的关系
