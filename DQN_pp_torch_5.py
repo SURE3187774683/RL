@@ -14,8 +14,8 @@ style.use('ggplot')
 
 ##########################################################################
 EPISODE_N = 10000                           #总训练局数
-REPLAY_MEMORY_SIZE = 100                   #经验池的大小
-BATCH_SIZE = 32                            #每次从经验池中取出的个数
+REPLAY_MEMORY_SIZE = 100                    #经验池的大小
+BATCH_SIZE = 32                             #每次从经验池中取出的个数
 gamma = 0.95                                #折扣因子
 lr = 1e-3                                   #学习率(步长)
 UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
@@ -25,12 +25,12 @@ EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
 EPI_DECAY = 0.995                           #epsilon的缩减速率
 #########################################################################
-VISUALIZE = True                       #是否观看回放
-ENV_MOVE = False                        #env是否变化
-VERBOSE = 2                             #调整日志模式（1——平均游戏得分；2——每局游戏得分）
-MAX_STEP = 200                          #每局最大步数
-SMOOTHNESS = int(EPISODE_N*0.01)         #表格平滑窗口
-SHOW_EVERY = 1                        #显示频率
+VISUALIZE = True                            #是否观看回放
+ENV_MOVE = False                            #env是否变化
+VERBOSE = 1                                 #调整日志模式（1——平均游戏得分；2——每局游戏得分）
+MAX_STEP = 200                              #每局最大步数
+SMOOTHNESS = int(EPISODE_N*0.01)            #表格平滑窗口
+SHOW_EVERY = 100                            #显示频率
 ##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
@@ -342,20 +342,20 @@ class DQNAgent:
                 if episode % UPDATE_TARGET_MODE_EVERY == 0:     #更新target_model(将当前模型的参数复制到目标模型)
                     self.update_target_model()
 
-                if episode_reward>JUDGE_REWARD:
+                if episode_reward>JUDGE_REWARD and episode%SHOW_EVERY==0:
                     print("WIN!")
-                else:
+                if episode_reward<JUDGE_REWARD and episode%SHOW_EVERY==0:
                     print("LOSE")
 
                 self.episode_rewards.append(episode_reward)     #收集所有训练累计的reward
                 episode_reward = 0                              #每局奖励清零
                 step = 0                                        #每局步数清零              
 
-                if verbose == 1:        #输出平均奖励
+                if verbose == 1 and episode%SHOW_EVERY==0:        #输出平均奖励
                     print(f"Episode: {episode}        Epsilon:{self.epsilon}")
                     print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
 
-                if verbose == 2:        #输出每轮游戏的奖励
+                if verbose == 2 and episode%SHOW_EVERY==0:        #输出每轮游戏的奖励
                     print(f"Episode: {episode}        Epsilon:{self.epsilon}")
                     print(f"### Episode Reward: {self.episode_rewards[-1]}")
                 
