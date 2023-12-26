@@ -1,4 +1,4 @@
-# 第五版：减去一个MODEL类之后的修正版
+# 第五版：减去一个MODEL类之后的修正版,加入tensorboard
 import torch
 import time
 import torch.nn as nn
