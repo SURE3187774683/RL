@@ -18,6 +18,7 @@ REPLAY_MEMORY_SIZE = 100                   #经验池的大小
 BATCH_SIZE = 32                            #每次从经验池中取出的个数
 gamma = 0.95                                #折扣因子
 lr = 1e-3                                   #学习率(步长)
+UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
 
 JUDGE_REWARD = 80                           #评价指标
 EPI_START = 1                               #epsilon的初始值
@@ -26,10 +27,10 @@ EPI_DECAY = 0.995                           #epsilon的缩减速率
 #########################################################################
 VISUALIZE = True                       #是否观看回放
 ENV_MOVE = False                        #env是否变化
-VERBOSE = 1                             #调整日志模式（1——平均游戏得分；2——每局游戏得分）
+VERBOSE = 2                             #调整日志模式（1——平均游戏得分；2——每局游戏得分）
 MAX_STEP = 200                          #每局最大步数
 SMOOTHNESS = int(EPISODE_N*0.01)         #表格平滑窗口
-SHOW_EVERY = 100                        #显示频率
+SHOW_EVERY = 1                        #显示频率
 ##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
@@ -338,6 +339,9 @@ class DQNAgent:
                 state = env.reset()
                 self.update_model()                             #更新model
 
+                if episode % UPDATE_TARGET_MODE_EVERY == 0:     #更新target_model(将当前模型的参数复制到目标模型)
+                    self.update_target_model()
+
                 if episode_reward>JUDGE_REWARD:
                     print("WIN!")
                 else:
@@ -352,13 +356,13 @@ class DQNAgent:
                     print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
 
                 if verbose == 2:        #输出每轮游戏的奖励
-                    print(f"Episode: {episode}, Epsilon:{self.epsilon}")
+                    print(f"Episode: {episode}        Epsilon:{self.epsilon}")
                     print(f"### Episode Reward: {self.episode_rewards[-1]}")
+                
             else:
                 state = next_state
                 
-            if step % 100 == 0:
-                self.update_target_model()
+            
                 
             if visualize and episode%SHOW_EVERY==0:
                 env.render()
