@@ -12,7 +12,7 @@ from matplotlib import style
 style.use('ggplot')
 
 ##########################################################################
-EPISODE_N = 30000                           #总训练局数
+EPISODE_N = 2000                           #总训练局数
 REPLAY_MEMORY_SIZE = 100                    #经验池的大小
 BATCH_SIZE = 32                             #每次从经验池中取出的个数
 gamma = 0.95                                #折扣因子
@@ -326,39 +326,31 @@ class DQNAgent:
             episode_reward = 0                              #每局奖励清零
 
             while not done:
-
                 action = self.select_action(state)              #选择action
                 next_state, reward, done = env.step(action)     #游戏走一步
-                
-            
-                self.losses.append(self.loss_value)
                 self.push_transition(state, action, reward, next_state, done)   #将当前状态放入经验池       
-
                 self.update_model()                             #更新model
-                state = next_state
-
+                state = next_state                              #更新state
                 episode_reward += reward                        #累加当次训练的reward
-
-                if visualize and episode%SHOW_EVERY==0:
+                if visualize and episode%SHOW_EVERY == 0:
                     env.render()
-            
-            self.episode_rewards.append(episode_reward)     #收集所有训练累计的reward
-            if verbose == 1 and episode%SHOW_EVERY==0:        #输出平均奖励
-                print(f"Episode: {episode}        Epsilon:{self.epsilon}")
-                print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
 
-            if verbose == 2 and episode%SHOW_EVERY==0:        #输出每轮游戏的奖励
-                print(f"Episode: {episode}        Epsilon:{self.epsilon}")
-                print(f"### Episode Reward: {self.episode_rewards[-1]}")
+            self.losses.append(self.loss_value)                 #收集所有训练累计的loss
+            self.episode_rewards.append(episode_reward)         #收集所有训练累计的reward
 
-            if episode % UPDATE_TARGET_MODE_EVERY == 0:     #更新target_model(将当前模型的参数复制到目标模型)
+            if episode % UPDATE_TARGET_MODE_EVERY == 0:         #更新target_model(将当前模型的参数复制到目标模型)
                 self.update_target_model()
-            if episode_reward>JUDGE_REWARD and episode%SHOW_EVERY==0:
-                print("WIN!")
-            if episode_reward<JUDGE_REWARD and episode%SHOW_EVERY==0:
-                print("LOSE")
-        
-        
+
+            if episode%SHOW_EVERY==0:                           #打印日志
+                print(f"Episode: {episode}        Epsilon:{self.epsilon}")
+                if episode_reward>JUDGE_REWARD:
+                    print("WIN!")
+                if episode_reward<JUDGE_REWARD:
+                    print("LOSE")
+                if verbose == 1:                                #输出平均奖励
+                    print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
+                if verbose == 2:                                #输出每轮游戏的奖励
+                    print(f"### Episode Reward: {self.episode_rewards[-1]}")
 
 def show_table(if_show):        #是否要展示episode和average_reward的关系
     if if_show==True:
