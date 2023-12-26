@@ -2,7 +2,6 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 from collections import deque
 import random
 import numpy as np
@@ -13,7 +12,7 @@ from matplotlib import style
 style.use('ggplot')
 
 ##########################################################################
-EPISODE_N = 10000                           #总训练局数
+EPISODE_N = 30000                           #总训练局数
 REPLAY_MEMORY_SIZE = 100                    #经验池的大小
 BATCH_SIZE = 32                             #每次从经验池中取出的个数
 gamma = 0.95                                #折扣因子
@@ -25,7 +24,7 @@ EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
 EPI_DECAY = 0.995                           #epsilon的缩减速率
 #########################################################################
-VISUALIZE = True                            #是否观看回放
+VISUALIZE = False                            #是否观看回放
 ENV_MOVE = False                            #env是否变化
 VERBOSE = 1                                 #调整日志模式（1——平均游戏得分；2——每局游戏得分）
 MAX_STEP = 200                              #每局最大步数
@@ -92,7 +91,7 @@ class Cube:
 class envCube:  # 生成环境类
     SIZE = 10           #地图大小
     NUM_PLAYERS = 1     # player的数量
-    NUM_ENEMIES = 5   # enemy的数量
+    NUM_ENEMIES = 1   # enemy的数量
 
     OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
     ACTION_SPACE_VALUES = 9 #action的数量
@@ -389,7 +388,6 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
 
 ###############################################################################################################
 env = envCube()
-model = DQN(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES)   #建立以state数量为输入，action数量为输出的神经网络
 agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, REPLAY_MEMORY_SIZE, BATCH_SIZE, gamma, EPI_START, EPI_END, EPI_DECAY)
 agent.train(env,VISUALIZE, VERBOSE) 
 show_table(True)
