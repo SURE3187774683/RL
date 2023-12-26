@@ -213,7 +213,7 @@ class DQNAgent():
         model.add(Flatten())                                            #添加平滑层
         model.add(Dense(32,activation='relu'))                          #添加连接层
         model.add(Dense(env.ACTION_SPACE_VALUES,activation='linear'))   #添加输出层
-        model.compile(loss='mse',optimizer='Adam',metrics=['accuracy']) #指定损失函数(均方误差（Mean Squared Error，MSE）)、优化器(动量优化和自适应学习率)和评价函数作为编译器
+        model.compile(loss='mse',optimizer='Adam',metrics=['accuracy']) #指定损失函数(均方误差（Mean Squared Error，MmodelSE）)、优化器(动量优化和自适应学习率)和评价函数作为编译器
         return model
 
     def train(self,terminal_state):
@@ -299,7 +299,6 @@ for episode in range(EPISODES):
         print(f'avg_reward:{avg_reward},max_reward:{max_reward},min_reward:{min_reward}')
 
         agent.tensorboard.update_stats(avg_reward=avg_reward,max_reward=max_reward,min_reward=min_reward,episilon=episilon,step=episode)
-        episode+=1
 
         if min_reward > model_save_avg_reward:          #当每十局的reward超过预设值时，将模型保存下来
             agent.model.save(f'./models/{min_reward:7.3f}_{int(time.time())}.model')
