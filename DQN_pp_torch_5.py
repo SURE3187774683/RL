@@ -1,8 +1,11 @@
 # 第五版：减去一个MODEL类之后的修正版
 import torch
+import time
 import torch.nn as nn
 import torch.optim as optim
 from collections import deque
+import os
+from tensorboardX import SummaryWriter
 import random
 import numpy as np
 import cv2
@@ -12,7 +15,7 @@ from matplotlib import style
 style.use('ggplot')
 
 ##########################################################################
-EPISODE_N = 100                           #总训练局数
+EPISODE_N = 10000                           #总训练局数
 REPLAY_MEMORY_SIZE = 100                    #经验池的大小
 BATCH_SIZE = 32                             #每次从经验池中取出的个数
 gamma = 0.95                                #折扣因子
@@ -30,7 +33,7 @@ ENV_MOVE = False                            #env是否变化
 VERBOSE = 1                                 #调整日志模式（1——平均游戏得分；2——每局游戏得分）
 MAX_STEP = 200                              #每局最大步数
 SMOOTHNESS = int(EPISODE_N*0.01)            #表格平滑窗口
-SHOW_EVERY = 1                            #显示频率
+SHOW_EVERY = 1                              #显示频率
 ##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
@@ -222,6 +225,7 @@ class DQN(nn.Module):
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(32, 32)
         self.output = nn.Linear(32, output_shape)
+        
 
     def forward(self, x):
         x = self.flatten(x)
@@ -352,8 +356,27 @@ class DQNAgent:
                 if verbose == 2:                                #输出每轮游戏的奖励
                     print(f"### Episode Reward: {self.episode_rewards[-1]}")
 
-                    
+            if episode % STATISTICS_EVERY == 0:
+                avg_reward = sum(self.episode_rewards[-STATISTICS_EVERY:])/len(self.episode_rewards[-STATISTICS_EVERY:])
+                max_reward = max(self.episode_rewards[-STATISTICS_EVERY:])
+                min_reward = min(self.episode_rewards[-STATISTICS_EVERY:])
+                print(f'avg_reward:{avg_reward},max_reward:{max_reward},min_reward:{min_reward}')
 
+                writer.add_scalar('Average Reward', avg_reward, episode)
+                writer.add_scalar('Max Reward', max_reward, episode)
+                writer.add_scalar('Min Reward', min_reward, episode)
+                writer.add_scalar('Epsilon', self.epsilon, episode)
+                writer.add_scalar('Loss', self.loss_value, episode)
+
+                #agent.tensorboard.update_stats(avg_reward=avg_reward,max_reward=max_reward,min_reward=min_reward,episilon=self.epsilon,step=episode)
+                #if max_reward > model_save_avg_reward:          #当每十局的reward超过预设值时，将模型保存下来
+                #    agent.model.save(f'./models/{min_reward:7.3f}_{int(time.time())}.model')
+                #    model_save_avg_reward = avg_reward
+        
+        writer.close()
+    
+
+##########################################################################################################    
 def show_table(if_show):        #是否要展示episode和average_reward的关系
     if if_show==True:           # 设置子图布局
         fig, (ax1, ax2) = plt.subplots(2, 1)
@@ -372,6 +395,7 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
         plt.show()
 
 ###############################################################################################################
+writer = SummaryWriter('logs/')
 env = envCube()
 agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, REPLAY_MEMORY_SIZE, BATCH_SIZE, gamma, EPI_START, EPI_END, EPI_DECAY)
 agent.train(env,VISUALIZE, VERBOSE) 
