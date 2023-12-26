@@ -159,7 +159,6 @@ class envCube:  # 生成环境类
             new_distances = np.linalg.norm(new_observation, ord=1)     #计算agent和food的距离
             for j in range(self.NUM_ENEMIES):
                 new_observation += (self.players[i] - self.enemies[j])
-
             
 # 判断player和enemy是否重叠
         equal_p_e = False
@@ -353,12 +352,9 @@ class DQNAgent:
                     print(f"### Episode Reward: {self.episode_rewards[-1]}")
 
 def show_table(if_show):        #是否要展示episode和average_reward的关系
-    if if_show==True:
-        # 设置子图布局
+    if if_show==True:           # 设置子图布局
         fig, (ax1, ax2) = plt.subplots(2, 1)
-        # 绘制平滑后的奖励曲线
-        smoothed_rewards = np.convolve(DQNAgent.episode_rewards, np.ones
-    (SMOOTHNESS)/SMOOTHNESS, mode='valid')
+        smoothed_rewards = np.convolve(DQNAgent.episode_rewards, np.ones(SMOOTHNESS)/SMOOTHNESS, mode='valid')# 绘制平滑后的奖励曲线
         ax1.plot(range(len(smoothed_rewards)), smoothed_rewards)
         ax1.set_xlabel('Episode')
         ax1.set_ylabel('Episode rewards')
