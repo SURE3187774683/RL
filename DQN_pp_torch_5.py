@@ -12,12 +12,13 @@ from matplotlib import style
 style.use('ggplot')
 
 ##########################################################################
-EPISODE_N = 2000                           #总训练局数
+EPISODE_N = 100                           #总训练局数
 REPLAY_MEMORY_SIZE = 100                    #经验池的大小
 BATCH_SIZE = 32                             #每次从经验池中取出的个数
 gamma = 0.95                                #折扣因子
 lr = 1e-3                                   #学习率(步长)
 UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
+STATISTICS_EVERY = 5                        #记录在tensorboard的频率
 
 JUDGE_REWARD = 80                           #评价指标
 EPI_START = 1                               #epsilon的初始值
@@ -91,7 +92,7 @@ class Cube:
 class envCube:  # 生成环境类
     SIZE = 10           #地图大小
     NUM_PLAYERS = 1     # player的数量
-    NUM_ENEMIES = 1   # enemy的数量
+    NUM_ENEMIES = 5   # enemy的数量
 
     OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
     ACTION_SPACE_VALUES = 9 #action的数量
@@ -350,6 +351,8 @@ class DQNAgent:
                     print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
                 if verbose == 2:                                #输出每轮游戏的奖励
                     print(f"### Episode Reward: {self.episode_rewards[-1]}")
+
+                    
 
 def show_table(if_show):        #是否要展示episode和average_reward的关系
     if if_show==True:           # 设置子图布局
