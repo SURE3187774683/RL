@@ -23,7 +23,8 @@ lr = 1e-3                                   #学习率(步长)
 UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
 STATISTICS_EVERY = 5                        #记录在tensorboard的频率
 
-JUDGE_REWARD = 80                           #评价指标
+model_save_avg_reward = 80                           #评价指标
+JUDGE_REWARD = 80
 EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
 EPI_DECAY = 0.99995                           #epsilon的缩减速率
@@ -323,7 +324,7 @@ class DQNAgent:
     def update_target_model(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
         
-    def train(self, env, visualize, verbose):    #训练agent
+    def train(self, mkdirenv, visualize, verbose):    #训练agent
         for episode in range(EPISODE_N):
             state = env.reset()     #重置环境
             done = False
@@ -355,7 +356,8 @@ class DQNAgent:
                     print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
                 if verbose == 2:                                #输出每轮游戏的奖励
                     print(f"### Episode Reward: {self.episode_rewards[-1]}")
-
+            
+            model_save_avg_reward = 80
             if episode % STATISTICS_EVERY == 0:
                 avg_reward = sum(self.episode_rewards[-STATISTICS_EVERY:])/len(self.episode_rewards[-STATISTICS_EVERY:])
                 max_reward = max(self.episode_rewards[-STATISTICS_EVERY:])
@@ -367,12 +369,16 @@ class DQNAgent:
                 writer.add_scalar('Min Reward', min_reward, episode)
                 writer.add_scalar('Epsilon', self.epsilon, episode)
                 writer.add_scalar('Loss', self.loss_value, episode)
+                
+                if avg_reward > model_save_avg_reward:
+                    model_save_avg_reward = avg_reward
+                    model_dir = './models'
+                    if not os.path.exists(model_dir):
+                        os.makedirs(model_dir)
+                    model_path = os.path.join(model_dir, f'{min_reward:7.3f}_{int(time.time())}.model')
+                    torch.save(DQN(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES).state_dict(), model_path)
 
-                #agent.tensorboard.update_stats(avg_reward=avg_reward,max_reward=max_reward,min_reward=min_reward,episilon=self.epsilon,step=episode)
-                #if max_reward > model_save_avg_reward:          #当每十局的reward超过预设值时，将模型保存下来
-                #    agent.model.save(f'./models/{min_reward:7.3f}_{int(time.time())}.model')
-                #    model_save_avg_reward = avg_reward
-        
+
         writer.close()
     
 
