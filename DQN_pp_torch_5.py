@@ -22,14 +22,14 @@ UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
 JUDGE_REWARD = 80                           #评价指标
 EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
-EPI_DECAY = 0.995                           #epsilon的缩减速率
+EPI_DECAY = 0.99995                           #epsilon的缩减速率
 #########################################################################
 VISUALIZE = False                            #是否观看回放
 ENV_MOVE = False                            #env是否变化
 VERBOSE = 1                                 #调整日志模式（1——平均游戏得分；2——每局游戏得分）
 MAX_STEP = 200                              #每局最大步数
 SMOOTHNESS = int(EPISODE_N*0.01)            #表格平滑窗口
-SHOW_EVERY = 100                            #显示频率
+SHOW_EVERY = 1                            #显示频率
 ##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
@@ -254,6 +254,13 @@ class DQNAgent:
     losses = []  # 用于保存每一步的损失值
 
     def __init__(self, nb_states, nb_actions, REPLAY_MEMORY_SIZE, BATCH_SIZE, gamma, EPI_START, EPI_END, epsilon_decay):       #生成agent的参数
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.policy_net = DQN(nb_states, nb_actions).to(self.device)    #构建当前q_net
+        self.target_net = DQN(nb_states, nb_actions).to(self.device)    #构建目标q_net
+        self.target_net.load_state_dict(self.policy_net.state_dict())   #使两个q_net结构相同
+        self.target_net.eval()                                          #将目标网络设为评估模式
+
         self.nb_states = nb_states
         self.nb_actions = nb_actions  
         self.BATCH_SIZE = BATCH_SIZE
@@ -263,12 +270,8 @@ class DQNAgent:
         self.epsilon_decay = epsilon_decay
 
         self.memory = ReplayMemory(REPLAY_MEMORY_SIZE)     #随机生成50000容量的经验池
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        self.policy_net = DQN(nb_states, nb_actions).to(self.device)    #构建当前q_net
-        self.target_net = DQN(nb_states, nb_actions).to(self.device)    #构建目标q_net
-        self.target_net.load_state_dict(self.policy_net.state_dict())   #使两个q_net结构相同
-        self.target_net.eval()                                          #将目标网络设为评估模式
+
         
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr)  #建立优化器来更新策略网络的权重
         self.loss_fn = nn.MSELoss()                                     #定义损失函数为均方误差损失函数
@@ -317,54 +320,45 @@ class DQNAgent:
         self.target_net.load_state_dict(self.policy_net.state_dict())
         
     def train(self, env, visualize, verbose):    #训练agent
-        
-        state = env.reset()     #重置环境
+        for episode in range(EPISODE_N):
+            state = env.reset()     #重置环境
+            done = False
+            episode_reward = 0                              #每局奖励清零
 
-        episode_reward = 0      #记录当次训练的reward
-        episode = 0             #记录当前局数
-        step = 0                #初始化当前步数
-        
-        while episode < EPISODE_N:
-            step += 1                                       #游戏步数加一
-            action = self.select_action(state)              #选择action
-            next_state, reward, done = env.step(action)     #游戏走一步
-            episode_reward += reward                        #累加当次训练的reward
+            while not done:
+
+                action = self.select_action(state)              #选择action
+                next_state, reward, done = env.step(action)     #游戏走一步
+                
             
-            self.losses.append(self.loss_value)
-            self.push_transition(state, action, reward, next_state, done)   #将当前状态放入经验池       
+                self.losses.append(self.loss_value)
+                self.push_transition(state, action, reward, next_state, done)   #将当前状态放入经验池       
 
-            if done:
-                episode += 1                                    #当前局数加一
-                state = env.reset()
                 self.update_model()                             #更新model
-
-                if episode % UPDATE_TARGET_MODE_EVERY == 0:     #更新target_model(将当前模型的参数复制到目标模型)
-                    self.update_target_model()
-
-                if episode_reward>JUDGE_REWARD and episode%SHOW_EVERY==0:
-                    print("WIN!")
-                if episode_reward<JUDGE_REWARD and episode%SHOW_EVERY==0:
-                    print("LOSE")
-
-                self.episode_rewards.append(episode_reward)     #收集所有训练累计的reward
-                episode_reward = 0                              #每局奖励清零
-                step = 0                                        #每局步数清零              
-
-                if verbose == 1 and episode%SHOW_EVERY==0:        #输出平均奖励
-                    print(f"Episode: {episode}        Epsilon:{self.epsilon}")
-                    print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
-
-                if verbose == 2 and episode%SHOW_EVERY==0:        #输出每轮游戏的奖励
-                    print(f"Episode: {episode}        Epsilon:{self.epsilon}")
-                    print(f"### Episode Reward: {self.episode_rewards[-1]}")
-                
-            else:
                 state = next_state
-                
+
+                episode_reward += reward                        #累加当次训练的reward
+
+                if visualize and episode%SHOW_EVERY==0:
+                    env.render()
             
-                
-            if visualize and episode%SHOW_EVERY==0:
-                env.render()
+            self.episode_rewards.append(episode_reward)     #收集所有训练累计的reward
+            if verbose == 1 and episode%SHOW_EVERY==0:        #输出平均奖励
+                print(f"Episode: {episode}        Epsilon:{self.epsilon}")
+                print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
+
+            if verbose == 2 and episode%SHOW_EVERY==0:        #输出每轮游戏的奖励
+                print(f"Episode: {episode}        Epsilon:{self.epsilon}")
+                print(f"### Episode Reward: {self.episode_rewards[-1]}")
+
+            if episode % UPDATE_TARGET_MODE_EVERY == 0:     #更新target_model(将当前模型的参数复制到目标模型)
+                self.update_target_model()
+            if episode_reward>JUDGE_REWARD and episode%SHOW_EVERY==0:
+                print("WIN!")
+            if episode_reward<JUDGE_REWARD and episode%SHOW_EVERY==0:
+                print("LOSE")
+        
+        
 
 def show_table(if_show):        #是否要展示episode和average_reward的关系
     if if_show==True:
@@ -379,9 +373,9 @@ def show_table(if_show):        #是否要展示episode和average_reward的关�
         ax1.set_title('Smoothed Episode rewards per Episode')
    
         ax2.plot(range(30, 30 + len(DQNAgent.losses)), DQNAgent.losses)
-        ax2.set_xlabel('Step')
+        ax2.set_xlabel('Episode')
         ax2.set_ylabel('Loss')
-        ax2.set_title('Loss per Step')
+        ax2.set_title('Loss per Episode')
         
         plt.tight_layout()
         plt.show()
