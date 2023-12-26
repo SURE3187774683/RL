@@ -259,7 +259,7 @@ class DQNAgent:
     losses = []  # 用于保存每一步的损失值
 
     def __init__(self, nb_states, nb_actions, REPLAY_MEMORY_SIZE, BATCH_SIZE, gamma, EPI_START, EPI_END, epsilon_decay):       #生成agent的参数
-
+        
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.policy_net = DQN(nb_states, nb_actions).to(self.device)    #构建当前q_net
         self.target_net = DQN(nb_states, nb_actions).to(self.device)    #构建目标q_net
