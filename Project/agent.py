@@ -62,7 +62,7 @@ class DQNAgent:
         self.BATCH_SIZE = BATCH_SIZE
         self.discount = DISCOUNT
         self.epsilon = EPI_START
-        self.EPI_END = EPI_END
+        self.episilon_end = EPI_END
         self.epsilon_decay = epsilon_decay
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -84,7 +84,7 @@ class DQNAgent:
                 return q_values.argmax().item()
     
     def update_epsilon(self):               
-        self.epsilon = max(self.EPI_END, self.epsilon * self.epsilon_decay)
+        self.epsilon = max(self.episilon_end, self.epsilon * self.epsilon_decay)
         
     def push_transition(self, state, action, reward, next_state, done):
         self.memory.push(state, action, reward, next_state, done)
