@@ -22,9 +22,6 @@ gamma = 0.95                                #折扣因子
 lr = 1e-3                                   #学习率(步长)
 UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
 STATISTICS_EVERY = 20                        #记录在tensorboard的频率
-
-model_save_avg_reward = 80                           #评价指标
-JUDGE_REWARD = 80
 EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
 EPI_DECAY = 0.99995                           #epsilon的缩减速率
@@ -315,7 +312,7 @@ class DQNAgent:
     def update_target_model(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
         
-    def train(self, mkdirenv, visualize, verbose):    #训练agent
+    def train(self, mkdirenv):    #训练agent
         writer = SummaryWriter('logs/')
         for episode in range(EPISODE_N):
             state = env.reset()                                 #重置环境
@@ -339,11 +336,11 @@ class DQNAgent:
             if episode%SHOW_EVERY==0:                           #打印日志
                 print(f"Episode: {episode}        Epsilon:{self.epsilon}")
 
-                if verbose == 1:                                #输出平均奖励
+                if VERBOSE == 1:                                #输出平均奖励
                     print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
-                if verbose == 2:                                #输出每轮游戏的奖励
+                if VERBOSE == 2:                                #输出每轮游戏的奖励
                     print(f"### Episode Reward: {self.episode_rewards[-1]}")
-                if visualize:                                   #显示动画
+                if VISUALIZE:                                   #显示动画
                     env.render()
             
             model_save_avg_reward = 80
@@ -366,10 +363,7 @@ class DQNAgent:
                         os.makedirs(model_dir)
                     model_path = os.path.join(model_dir, f'{min_reward:7.3f}_{int(time.time())}.model')
                     torch.save(DQN(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES).state_dict(), model_path)
-
-        writer.close()
-
 ###############################################################################################################
 env = envCube()
 agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, REPLAY_MEMORY_SIZE, BATCH_SIZE, gamma, EPI_START, EPI_END, EPI_DECAY)
-agent.train(env,VISUALIZE, VERBOSE) 
+agent.train(env) 
