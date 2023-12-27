@@ -1,4 +1,7 @@
-#创建agent
+# 神经网络：2*线性层、3*隐藏层
+# loss函数：均方误差损失函数(Mean Squared Error)
+# 优化器: Adam(自适应地调整学习率)
+# SURE
 
 import torch
 import torch.nn as nn
@@ -6,7 +9,29 @@ import random
 from collections import deque
 import torch.nn as nn
 import torch.optim as optim
-import random
+
+class ReplayMemory:     #经验回放缓存
+    def __init__(self, capacity):   #随机生成capacity大小的经验池
+        self.capacity = capacity
+        self.memory = deque(maxlen=capacity)
+        
+    def push(self, state, action, reward, next_state, done):    #将经验存储到缓存中
+        self.memory.append((state, action, reward, next_state, done))
+    
+    def sample(self, BATCH_SIZE):                               #从缓存中随机采样一批经验并将其转换为张量形式
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        batch = random.sample(self.memory, BATCH_SIZE)          
+        states, actions, rewards, next_states, dones = zip(*batch)
+        states = torch.FloatTensor(states).to(self.device)
+        actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
+        rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
+        next_states = torch.FloatTensor(next_states).to(self.device)
+        dones = torch.BoolTensor(dones).unsqueeze(1).to(self.device)
+        
+        return states, actions, rewards, next_states, dones
+    
+    def __len__(self):      #当前缓存中的经验数量
+        return len(self.memory)
 
 class DQN(nn.Module):
     def __init__(self, input_shape, output_shape):      #生成一个state数量输入，action数量输出的神经网络
@@ -25,27 +50,6 @@ class DQN(nn.Module):
         x = self.relu(x)
         x = self.output(x)
         return x
-class ReplayMemory:     #经验回放缓存
-    def __init__(self, capacity):   #随机生成capacity大小的经验池
-        self.capacity = capacity
-        self.memory = deque(maxlen=capacity)
-        
-    def push(self, state, action, reward, next_state, done):    #将经验存储到缓存中
-        self.memory.append((state, action, reward, next_state, done))
-    
-    def sample(self, BATCH_SIZE):                               #从缓存中随机采样一批经验并将其转换为张量形式
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        batch = random.sample(self.memory, BATCH_SIZE)          
-        states, actions, rewards, next_states, dones = zip(*batch)
-        states = torch.FloatTensor(states).to(self.device)
-        actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
-        rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
-        next_states = torch.FloatTensor(next_states).to(self.device)
-        dones = torch.BoolTensor(dones).unsqueeze(1).to(self.device)
-        return states, actions, rewards, next_states, dones
-    
-    def __len__(self):      #当前缓存中的经验数量
-        return len(self.memory)
 
 class DQNAgent:
     episode_rewards = []
