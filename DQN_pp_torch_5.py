@@ -15,7 +15,7 @@ from matplotlib import style
 style.use('ggplot')
 
 ##########################################################################
-EPISODE_N = 10000                           #总训练局数
+EPISODE_N = 50000                           #总训练局数
 REPLAY_MEMORY_SIZE = 100                    #经验池的大小
 BATCH_SIZE = 32                             #每次从经验池中取出的个数
 gamma = 0.95                                #折扣因子
@@ -24,7 +24,7 @@ UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
 STATISTICS_EVERY = 20                        #记录在tensorboard的频率
 EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
-EPI_DECAY = 0.99995                           #epsilon的缩减速率
+EPI_DECAY = 0.995                           #epsilon的缩减速率
 #########################################################################
 VISUALIZE = False                            #是否观看回放
 ENV_MOVE = False                            #env是否变化
@@ -92,7 +92,7 @@ class Cube:
 class envCube:  # 生成环境类
     SIZE = 10           #地图大小
     NUM_PLAYERS = 1     # player的数量
-    NUM_ENEMIES = 5   # enemy的数量
+    NUM_ENEMIES = 1   # enemy的数量
 
     OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
     ACTION_SPACE_VALUES = 9 #action的数量
@@ -265,7 +265,8 @@ class DQNAgent:
         self.target_net = DQN(nb_states, nb_actions).to(self.device)    #构建目标q_net
         self.target_net.load_state_dict(self.policy_net.state_dict())   #使两个q_net结构相同
         self.target_net.eval()                                          #将目标网络设为评估模式
-
+        self.memory = ReplayMemory(REPLAY_MEMORY_SIZE)                  #随机生成50000容量的经验池
+        
         self.nb_states = nb_states
         self.nb_actions = nb_actions  
         self.BATCH_SIZE = BATCH_SIZE
@@ -274,10 +275,6 @@ class DQNAgent:
         self.EPI_END = EPI_END
         self.epsilon_decay = epsilon_decay
 
-        self.memory = ReplayMemory(REPLAY_MEMORY_SIZE)     #随机生成50000容量的经验池
-        
-
-        
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr)  #建立优化器来更新策略网络的权重
         self.loss_fn = nn.MSELoss()                                     #定义损失函数为均方误差损失函数
         
@@ -312,7 +309,9 @@ class DQNAgent:
     def update_target_model(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
         
+        
     def train(self, mkdirenv):    #训练agent
+        model_save_avg_reward = 80
         writer = SummaryWriter('logs/')
         for episode in range(EPISODE_N):
             state = env.reset()                                 #重置环境
@@ -335,15 +334,13 @@ class DQNAgent:
 
             if episode%SHOW_EVERY==0:                           #打印日志
                 print(f"Episode: {episode}        Epsilon:{self.epsilon}")
-
                 if VERBOSE == 1:                                #输出平均奖励
                     print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
                 if VERBOSE == 2:                                #输出每轮游戏的奖励
                     print(f"### Episode Reward: {self.episode_rewards[-1]}")
                 if VISUALIZE:                                   #显示动画
                     env.render()
-            
-            model_save_avg_reward = 80
+
             if episode % STATISTICS_EVERY == 0:                 #记录有用的参数
                 avg_reward = sum(self.episode_rewards[-STATISTICS_EVERY:])/len(self.episode_rewards[-STATISTICS_EVERY:])
                 max_reward = max(self.episode_rewards[-STATISTICS_EVERY:])
@@ -361,7 +358,7 @@ class DQNAgent:
                     model_dir = './models'
                     if not os.path.exists(model_dir):
                         os.makedirs(model_dir)
-                    model_path = os.path.join(model_dir, f'{min_reward:7.3f}_{int(time.time())}.model')
+                    model_path = os.path.join(model_dir, f'{avg_reward:7.3f}_{int(time.time())}.model')
                     torch.save(DQN(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES).state_dict(), model_path)
 ###############################################################################################################
 env = envCube()
