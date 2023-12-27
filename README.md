@@ -1,5 +1,9 @@
 # DQN for Path-Planning
 
+## Main
+#### 1.my_learning_experience（本人的rl学习经历）
+#### 2.project（创建的项目）
+
 ## Fream
 #### Ubuntu-22.04
 #### tensorflow-2.15.0
