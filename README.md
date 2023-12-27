@@ -8,7 +8,7 @@
 #### Ubuntu-22.04
 #### tensorflow-2.15.0
 #### pytorch-2.1.1
-#### python-3.9.18
+#### python-3.8.18
 
 ## project
 #### 1.自行创建了path planning的环境
