@@ -11,17 +11,17 @@ from agent import DQN
 from env import envCube
 
 ##########################################################################
-EPISODE_N = 50000                           #总训练局数
-REPLAY_MEMORY_SIZE = 100                    #经验池的大小
-BATCH_SIZE = 32                             #每次从经验池中取出的个数
+EPISODE_N = 100000                           #总训练局数
+REPLAY_MEMORY_SIZE = 1000                    #经验池的大小
+BATCH_SIZE = 500                             #每次从经验池中取出的个数
 DISCOUNT = 0.95                             #折扣因子
 LEARNING_RATE = 1e-3                        #学习率(步长)
 UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
 STATISTICS_EVERY = 20                       #记录在tensorboard的频率
-MODEL_SAVE_AVG_REWARD = 150                 #优秀模型评价指标
+MODEL_SAVE_AVG_REWARD = 130                 #优秀模型评价指标
 EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
-EPI_DECAY = 0.9999995                           #epsilon的缩减速率
+EPI_DECAY = 0.99995                           #epsilon的缩减速率
 #########################################################################
 VISUALIZE = False                           #是否观看回放
 VERBOSE = 1                                 #调整日志模式（1——平均游戏得分；2——每局游戏得分）
@@ -37,19 +37,18 @@ for episode in range(EPISODE_N):
     episode_reward = 0                                  #每局奖励清零
 
     while not done:
-        action = agent.select_action(state)              #选择action
+        action = agent.select_action(state)             #选择action
         next_state, reward, done = env.step(action)     #游戏走一步
         agent.push_transition(state, action, reward, next_state, done)   #将当前状态放入池       
-        agent.update_epsilon()                           #更新epsilon
+        agent.update_epsilon()                          #更新epsilon
         state = next_state                              #更新state
         episode_reward += reward                        #累加当次训练的reward
 
         if done:
-            state = env.reset()                                 #重置环境
-            agent.episode_rewards.append(episode_reward)         #收集所有训练累计的rewar
+            agent.episode_rewards.append(episode_reward)#收集所有训练累计的rewar
             break
-    
-    agent.update_model()                             #更新model
+        agent.update_model()                            #更新model
+
     if episode % UPDATE_TARGET_MODE_EVERY == 0:         #更新target_model(将当前模型的复制到目标模型)
         agent.update_target_model()
     if episode%SHOW_EVERY==0:                           #打印日志
