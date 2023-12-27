@@ -12,8 +12,8 @@ from env import envCube
 
 ##########################################################################
 EPISODE_N = 100000                          #总训练局数
-REPLAY_MEMORY_SIZE = 1000                   #经验池的大小
-BATCH_SIZE = 500                            #每次从经验池中取出的个数
+REPLAY_MEMORY_SIZE = 64                   #经验池的大小
+BATCH_SIZE = 20                            #每次从经验池中取出的个数
 DISCOUNT = 0.95                             #折扣因子
 LEARNING_RATE = 1e-3                        #学习率(步长)
 UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
@@ -21,16 +21,17 @@ STATISTICS_EVERY = 20                       #记录在tensorboard的频率
 MODEL_SAVE_AVG_REWARD = 130                 #优秀模型评价指标
 EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
-EPI_DECAY = 0.99995                         #epsilon的缩减速率
+EPI_DECAY = 0.9995                         #epsilon的缩减速率
 #########################################################################
 VISUALIZE = False                           #是否观看回放
 VERBOSE = 1                                 #调整日志模式（1——平均游戏得分；2——每局游戏得分）
 SHOW_EVERY = 100                            #显示频率
 ##########################################################################
 writer = SummaryWriter('logs/experiment1/')                         #创建笔
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 env = envCube()
-agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, REPLAY_MEMORY_SIZE, BATCH_SIZE, DISCOUNT,LEARNING_RATE , EPI_START, EPI_END, EPI_DECAY)
+agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, REPLAY_MEMORY_SIZE, BATCH_SIZE, DISCOUNT,LEARNING_RATE , EPI_START, EPI_END, EPI_DECAY,device)
 for episode in range(EPISODE_N): 
     state = env.reset()                                 #重置环境
     done = False
