@@ -1,6 +1,8 @@
 #Double-DQN实现pathplanning
 #SURE   
 
+from pickle import TRUE
+from re import T
 import torch
 import os
 import time
@@ -23,9 +25,9 @@ EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
 EPI_DECAY = 0.9995                         #epsilon的缩减速率
 #########################################################################
-VISUALIZE = False                           #是否观看回放
+VISUALIZE = TRUE                           #是否观看回放
 VERBOSE = 1                                 #调整日志模式（1——平均游戏得分；2——每局游戏得分）
-SHOW_EVERY = 100                            #显示频率
+SHOW_EVERY = 50                            #显示频率
 ##########################################################################
 writer = SummaryWriter('logs/experiment1/')                         #创建笔
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
