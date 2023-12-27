@@ -10,6 +10,9 @@ import random
 import numpy as np
 import cv2
 from PIL import Image
+import matplotlib.pyplot as plt
+from matplotlib import style
+style.use('ggplot')
 
 ##########################################################################
 EPISODE_N = 10000                           #总训练局数
@@ -18,15 +21,15 @@ BATCH_SIZE = 32                             #每次从经验池中取出的个�
 gamma = 0.95                                #折扣因子
 lr = 1e-3                                   #学习率(步长)
 UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
-STATISTICS_EVERY = 5                        #记录在tensorboard的频率
+STATISTICS_EVERY = 20                        #记录在tensorboard的频率
 
-model_save_avg_reward = 80                  #评价指标
+model_save_avg_reward = 80                           #评价指标
 JUDGE_REWARD = 80
 EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
-EPI_DECAY = 0.999995                        #epsilon的缩减速率
+EPI_DECAY = 0.99995                           #epsilon的缩减速率
 #########################################################################
-VISUALIZE = False                           #是否观看回放
+VISUALIZE = False                            #是否观看回放
 ENV_MOVE = False                            #env是否变化
 VERBOSE = 1                                 #调整日志模式（1——平均游戏得分；2——每局游戏得分）
 MAX_STEP = 200                              #每局最大步数
@@ -241,9 +244,15 @@ class ReplayMemory:     #经验回放缓存
     def push(self, state, action, reward, next_state, done):    #将经验存储到缓存中
         self.memory.append((state, action, reward, next_state, done))
     
-    def sample(self, BATCH_SIZE):                               #从缓存中随机采样一批经验
-        batch = random.sample(self.memory, BATCH_SIZE)
+    def sample(self, BATCH_SIZE):                               #从缓存中随机采样一批经验并将其转换为张量形式
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        batch = random.sample(self.memory, BATCH_SIZE)          
         states, actions, rewards, next_states, dones = zip(*batch)
+        states = torch.FloatTensor(states).to(self.device)
+        actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
+        rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
+        next_states = torch.FloatTensor(next_states).to(self.device)
+        dones = torch.BoolTensor(dones).unsqueeze(1).to(self.device)
         return states, actions, rewards, next_states, dones
     
     def __len__(self):      #当前缓存中的经验数量
@@ -251,8 +260,6 @@ class ReplayMemory:     #经验回放缓存
 
 class DQNAgent:
     episode_rewards = []
-    loss_value = 0
-    losses = []  # 用于保存每一步的损失值
 
     def __init__(self, nb_states, nb_actions, REPLAY_MEMORY_SIZE, BATCH_SIZE, gamma, EPI_START, EPI_END, epsilon_decay):       #生成agent的参数
         
@@ -292,39 +299,29 @@ class DQNAgent:
     def push_transition(self, state, action, reward, next_state, done):
         self.memory.push(state, action, reward, next_state, done)
     
-    def update_model(self):     #利用经验池更新神经网络模型
-        if len(self.memory) < self.BATCH_SIZE:
+    def update_model(self):     #将采样的经验转换为 PyTorch 张量
+        if len(self.memory) < REPLAY_MEMORY_SIZE:                               #经验池小于一定量时
             return
-        
-        states, actions, rewards, next_states, dones = self.memory.sample(self.BATCH_SIZE)
-        
-        states = torch.FloatTensor(states).to(self.device)
-        actions = torch.LongTensor(actions).unsqueeze(1).to(self.device)
-        rewards = torch.FloatTensor(rewards).unsqueeze(1).to(self.device)
-        next_states = torch.FloatTensor(next_states).to(self.device)
-        dones = torch.BoolTensor(dones).unsqueeze(1).to(self.device)
-        
-        q_values = self.policy_net(states).gather(1, actions)
-        next_q_values = self.target_net(next_states).max(1)[0].unsqueeze(1)
-        expected_q_values = rewards + (~dones) * self.gamma * next_q_values
-        
-        loss = self.loss_fn(q_values, expected_q_values)
-        self.loss_value = loss.item()
-
-        self.optimizer.zero_grad()
-        loss.backward()
-        self.optimizer.step()
+        states, actions, rewards, next_states, dones = self.memory.sample(self.BATCH_SIZE)#从经验池取样
+        q_values = self.policy_net(states).gather(1, actions)                   #链接action和对应的q_value
+        next_q_values = self.target_net(next_states).max(1)[0].unsqueeze(1)     #选取最大的value对应的q_value
+        expected_q_values = rewards + (~dones) * self.gamma * next_q_values     #贝尔曼方程计算期望的 Q 值 
+        loss = self.loss_fn(q_values, expected_q_values)                        #当前策略网络的 Q 值估计与期望 Q 值之间的差异
+        self.loss_value = loss.item()                                           #将损失值保存在loss_value变量中
+        self.optimizer.zero_grad()                                              #将优化器的梯度缓冲区清零
+        loss.backward()                                                         #通过自动求导计算损失函数关于网络参数的梯度
+        self.optimizer.step()                                                   #根据计算得到的梯度，更新网络参数
         
     def update_target_model(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
         
-    def train(self, mkdirenv, visualize, verbose):          #训练agent
-        writer = SummaryWriter('logs/')                     #将结果画在tensorboard上
+    def train(self, mkdirenv, visualize, verbose):    #训练agent
+        writer = SummaryWriter('logs/')
         for episode in range(EPISODE_N):
-            state = env.reset()                             #重置环境
+            state = env.reset()                                 #重置环境
             done = False
-            episode_reward = 0                              #每局奖励清零
-
+            episode_reward = 0                                  #每局奖励清零
+            self.loss_value = 0                                 #每局loss清零
             while not done:
                 action = self.select_action(state)              #选择action
                 next_state, reward, done = env.step(action)     #游戏走一步
@@ -332,53 +329,47 @@ class DQNAgent:
                 self.update_model()                             #更新model
                 state = next_state                              #更新state
                 episode_reward += reward                        #累加当次训练的reward
-                if visualize and episode%SHOW_EVERY == 0:
-                    env.render()
-
-            self.losses.append(self.loss_value)                 #收集所有训练累计的loss
-            self.episode_rewards.append(episode_reward)         #收集所有训练累计的reward
             
-            self.update_epsilon()
+            self.update_epsilon()                           #更新epsilon
+            self.episode_rewards.append(episode_reward)         #收集所有训练累计的reward
+
             if episode % UPDATE_TARGET_MODE_EVERY == 0:         #更新target_model(将当前模型的参数复制到目标模型)
                 self.update_target_model()
 
-            if episode%SHOW_EVERY==0:                           #打印日志             
-                if episode_reward>JUDGE_REWARD:
-                    print("WIN!")
-                if episode_reward<JUDGE_REWARD:
-                    print("LOSE")
-
+            if episode%SHOW_EVERY==0:                           #打印日志
                 print(f"Episode: {episode}        Epsilon:{self.epsilon}")
 
                 if verbose == 1:                                #输出平均奖励
                     print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
                 if verbose == 2:                                #输出每轮游戏的奖励
                     print(f"### Episode Reward: {self.episode_rewards[-1]}")
+                if visualize:                                   #显示动画
+                    env.render()
             
-            model_save_avg_reward = 60
-            if episode % STATISTICS_EVERY == 0:
+            model_save_avg_reward = 80
+            if episode % STATISTICS_EVERY == 0:                 #记录有用的参数
                 avg_reward = sum(self.episode_rewards[-STATISTICS_EVERY:])/len(self.episode_rewards[-STATISTICS_EVERY:])
                 max_reward = max(self.episode_rewards[-STATISTICS_EVERY:])
                 min_reward = min(self.episode_rewards[-STATISTICS_EVERY:])
-                #print(f'avg_reward:{avg_reward},max_reward:{max_reward},min_reward:{min_reward}')
-                
-                
+
+                writer.add_scalar('Episode Reward', episode_reward, episode)
                 writer.add_scalar('Average Reward', avg_reward, episode)
                 writer.add_scalar('Max Reward', max_reward, episode)
                 writer.add_scalar('Min Reward', min_reward, episode)
                 writer.add_scalar('Epsilon', self.epsilon, episode)
                 writer.add_scalar('Loss', self.loss_value, episode)
                 
-                if avg_reward > model_save_avg_reward:
+                if avg_reward > model_save_avg_reward:          #保存优秀的模型
                     model_save_avg_reward = avg_reward
                     model_dir = './models'
                     if not os.path.exists(model_dir):
                         os.makedirs(model_dir)
-                    model_path = os.path.join(model_dir, f'{avg_reward:7.3f}_{int(time.time())}.model')
+                    model_path = os.path.join(model_dir, f'{min_reward:7.3f}_{int(time.time())}.model')
                     torch.save(DQN(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES).state_dict(), model_path)
 
-###############################################################################################################
+        writer.close()
 
+###############################################################################################################
 env = envCube()
 agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, REPLAY_MEMORY_SIZE, BATCH_SIZE, gamma, EPI_START, EPI_END, EPI_DECAY)
 agent.train(env,VISUALIZE, VERBOSE) 
