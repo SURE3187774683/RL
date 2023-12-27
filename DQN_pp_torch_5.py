@@ -10,9 +10,6 @@ import random
 import numpy as np
 import cv2
 from PIL import Image
-import matplotlib.pyplot as plt
-from matplotlib import style
-style.use('ggplot')
 
 ##########################################################################
 EPISODE_N = 10000                           #总训练局数
@@ -23,18 +20,17 @@ lr = 1e-3                                   #学习率(步长)
 UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
 STATISTICS_EVERY = 5                        #记录在tensorboard的频率
 
-model_save_avg_reward = 80                           #评价指标
+model_save_avg_reward = 80                  #评价指标
 JUDGE_REWARD = 80
 EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
-EPI_DECAY = 0.99995                           #epsilon的缩减速率
+EPI_DECAY = 0.999995                        #epsilon的缩减速率
 #########################################################################
-VISUALIZE = False                            #是否观看回放
+VISUALIZE = False                           #是否观看回放
 ENV_MOVE = False                            #env是否变化
 VERBOSE = 1                                 #调整日志模式（1——平均游戏得分；2——每局游戏得分）
 MAX_STEP = 200                              #每局最大步数
-SMOOTHNESS = int(EPISODE_N*0.01)            #表格平滑窗口
-SHOW_EVERY = 1                              #显示频率
+SHOW_EVERY = 100                              #显示频率
 ##########################################################################
 
 # 建立Cube类，用于创建player、food和enemy
@@ -296,7 +292,7 @@ class DQNAgent:
     def push_transition(self, state, action, reward, next_state, done):
         self.memory.push(state, action, reward, next_state, done)
     
-    def update_model(self):     #将采样的经验转换为 PyTorch 张量
+    def update_model(self):     #利用经验池更新神经网络模型
         if len(self.memory) < self.BATCH_SIZE:
             return
         
@@ -319,14 +315,13 @@ class DQNAgent:
         loss.backward()
         self.optimizer.step()
         
-        self.update_epsilon()
-        
     def update_target_model(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
         
-    def train(self, mkdirenv, visualize, verbose):    #训练agent
+    def train(self, mkdirenv, visualize, verbose):          #训练agent
+        writer = SummaryWriter('logs/')                     #将结果画在tensorboard上
         for episode in range(EPISODE_N):
-            state = env.reset()     #重置环境
+            state = env.reset()                             #重置环境
             done = False
             episode_reward = 0                              #每局奖励清零
 
@@ -342,28 +337,32 @@ class DQNAgent:
 
             self.losses.append(self.loss_value)                 #收集所有训练累计的loss
             self.episode_rewards.append(episode_reward)         #收集所有训练累计的reward
-
+            
+            self.update_epsilon()
             if episode % UPDATE_TARGET_MODE_EVERY == 0:         #更新target_model(将当前模型的参数复制到目标模型)
                 self.update_target_model()
 
-            if episode%SHOW_EVERY==0:                           #打印日志
-                print(f"Episode: {episode}        Epsilon:{self.epsilon}")
+            if episode%SHOW_EVERY==0:                           #打印日志             
                 if episode_reward>JUDGE_REWARD:
                     print("WIN!")
                 if episode_reward<JUDGE_REWARD:
                     print("LOSE")
+
+                print(f"Episode: {episode}        Epsilon:{self.epsilon}")
+
                 if verbose == 1:                                #输出平均奖励
                     print(f"### Average Reward: {np.mean(self.episode_rewards)}")                
                 if verbose == 2:                                #输出每轮游戏的奖励
                     print(f"### Episode Reward: {self.episode_rewards[-1]}")
             
-            model_save_avg_reward = 80
+            model_save_avg_reward = 60
             if episode % STATISTICS_EVERY == 0:
                 avg_reward = sum(self.episode_rewards[-STATISTICS_EVERY:])/len(self.episode_rewards[-STATISTICS_EVERY:])
                 max_reward = max(self.episode_rewards[-STATISTICS_EVERY:])
                 min_reward = min(self.episode_rewards[-STATISTICS_EVERY:])
-                print(f'avg_reward:{avg_reward},max_reward:{max_reward},min_reward:{min_reward}')
-
+                #print(f'avg_reward:{avg_reward},max_reward:{max_reward},min_reward:{min_reward}')
+                
+                
                 writer.add_scalar('Average Reward', avg_reward, episode)
                 writer.add_scalar('Max Reward', max_reward, episode)
                 writer.add_scalar('Min Reward', min_reward, episode)
@@ -375,34 +374,11 @@ class DQNAgent:
                     model_dir = './models'
                     if not os.path.exists(model_dir):
                         os.makedirs(model_dir)
-                    model_path = os.path.join(model_dir, f'{min_reward:7.3f}_{int(time.time())}.model')
+                    model_path = os.path.join(model_dir, f'{avg_reward:7.3f}_{int(time.time())}.model')
                     torch.save(DQN(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES).state_dict(), model_path)
 
-
-        writer.close()
-    
-
-##########################################################################################################    
-def show_table(if_show):        #是否要展示episode和average_reward的关系
-    if if_show==True:           # 设置子图布局
-        fig, (ax1, ax2) = plt.subplots(2, 1)
-        smoothed_rewards = np.convolve(DQNAgent.episode_rewards, np.ones(SMOOTHNESS)/SMOOTHNESS, mode='valid')# 绘制平滑后的奖励曲线
-        ax1.plot(range(len(smoothed_rewards)), smoothed_rewards)
-        ax1.set_xlabel('Episode')
-        ax1.set_ylabel('Episode rewards')
-        ax1.set_title('Smoothed Episode rewards per Episode')
-   
-        ax2.plot(range(30, 30 + len(DQNAgent.losses)), DQNAgent.losses)
-        ax2.set_xlabel('Episode')
-        ax2.set_ylabel('Loss')
-        ax2.set_title('Loss per Episode')
-        
-        plt.tight_layout()
-        plt.show()
-
 ###############################################################################################################
-writer = SummaryWriter('logs/')
+
 env = envCube()
 agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, REPLAY_MEMORY_SIZE, BATCH_SIZE, gamma, EPI_START, EPI_END, EPI_DECAY)
 agent.train(env,VISUALIZE, VERBOSE) 
-show_table(True)
