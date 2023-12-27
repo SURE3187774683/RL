@@ -1,4 +1,3 @@
-#接口参数
 #Double-DQN实现pathplanning
 #SURE   
 
@@ -22,7 +21,7 @@ STATISTICS_EVERY = 20                       #记录在tensorboard的频率
 MODEL_SAVE_AVG_REWARD = 150                 #优秀模型评价指标
 EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
-EPI_DECAY = 0.995                           #epsilon的缩减速率
+EPI_DECAY = 0.9999995                           #epsilon的缩减速率
 #########################################################################
 VISUALIZE = False                           #是否观看回放
 VERBOSE = 1                                 #调整日志模式（1——平均游戏得分；2——每局游戏得分）
