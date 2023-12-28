@@ -8,34 +8,32 @@ import numpy as np
 from agent import DQNAgent
 from agent import DQN
 from env import envCube
-##########################################################################
-EPISODE_N = 1000                          #总训练局数
-REPLAY_MEMORY_SIZE = 64                   #经验池的大小
-BATCH_SIZE = 20                            #每次从经验池中取出的个数
-DISCOUNT = 0.95                             #折扣因子
-LEARNING_RATE = 1e-3                        #学习率(步长)
-UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
-STATISTICS_EVERY = 20                       #记录在tensorboard的频率
-MODEL_SAVE_AVG_REWARD = 130                 #优秀模型评价指标
-EPI_START = 1                               #epsilon的初始值
-EPI_END = 0.001                             #epsilon的终止值
-EPI_DECAY = 0.9995                         #epsilon的缩减速率
-#########################################################################
-VISUALIZE = False                           #是否观看回放
-VERBOSE = 1                                 #调整日志模式（1——平均游戏得分；2——每局游戏得分）
-SHOW_EVERY = 50                            #显示频率
-##########################################################################
-writer = SummaryWriter('logs/experiment1/')                         #创建笔
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Algorithum_1:
-    def __init__(self):
-        pass
+    def __init__(self,episodes, replay_memory_size, batch_size,discount, learning_rate,update_target_mode_every,statistics_every,model_save_avg_reward,epi_start, epi_end, epi_decay,visualize,verbose,show_every):
+        self.episodes = episodes
+        self.replay_memory_size = replay_memory_size
+        self.batch_size = batch_size
+        self.discount = discount
+        self.learning_rate = learning_rate
+        self.update_target_mode_every = update_target_mode_every
+        self.statistics_every = statistics_every
+        self.model_save_avg_reward = model_save_avg_reward
+        self.epi_start = epi_start
+        self.epi_end = epi_end
+        self.epi_decay = epi_decay
+        self.visualize = visualize
+        self.verbose = verbose
+        self.show_every = show_every
+
+        self.writer = SummaryWriter('logs/experiment1/')                         #创建笔
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
     def train(self):
         env = envCube()
-        agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, REPLAY_MEMORY_SIZE, BATCH_SIZE, DISCOUNT,LEARNING_RATE , EPI_START, EPI_END, EPI_DECAY,device)
-        for episode in range(EPISODE_N): 
+        agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, self.replay_memory_size, self.batch_size, self.discount,self.learning_rate , self.epi_start, self.epi_end, self.epi_decay,self.device)
+        for episode in range(self.episodes): 
             state = env.reset()                                 #重置环境
             done = False
             episode_reward = 0                                  #每局奖励清零
@@ -53,30 +51,30 @@ class Algorithum_1:
                     agent.episode_rewards.append(episode_reward)#收集所有训练累计的rewar
                     break
 
-            if episode % UPDATE_TARGET_MODE_EVERY == 0:         #更新target_model(将当前模型的复制到目标模型)
+            if episode % self.update_target_mode_every == 0:         #更新target_model(将当前模型的复制到目标模型)
                 agent.update_target_model()
-            if episode%SHOW_EVERY==0:                           #打印日志
+            if episode%self.show_every==0:                           #打印日志
                 print(f"Episode: {episode}        Epsilon:{agent.epsilon}")
-                if VERBOSE == 1:                                #输出平均奖励
+                if self.verbose == 1:                                #输出平均奖励
                     print(f"### Average Reward: {np.mean(agent.episode_rewards)}")                
-                if VERBOSE == 2:                                #输出每轮游戏的奖励
+                if self.verbose == 2:                                #输出每轮游戏的奖励
                     print(f"### Episode Reward: {agent.episode_rewards[-1]}")
-                if VISUALIZE:                                   #显示动画
+                if self.visualize:                                   #显示动画
                     env.render()
 
-            if episode % STATISTICS_EVERY == 0:                 #记录有用的参数
-                avg_reward = sum(agent.episode_rewards[-STATISTICS_EVERY:])/len(agent.episode_rewards       [-STATISTICS_EVERY:])
-                max_reward = max(agent.episode_rewards[-STATISTICS_EVERY:])
-                min_reward = min(agent.episode_rewards[-STATISTICS_EVERY:])
-                writer.add_scalar('Episode Reward', episode_reward, episode)
-                writer.add_scalar('Average Reward', avg_reward, episode)
-                writer.add_scalar('Max Reward', max_reward, episode)
-                writer.add_scalar('Min Reward', min_reward, episode)
-                writer.add_scalar('Epsilon', agent.epsilon, episode)
-                writer.add_scalar('Loss', agent.loss_value, episode)
+            if episode % self.statistics_every == 0:                 #记录有用的参数
+                avg_reward = sum(agent.episode_rewards[-self.statistics_every:])/len(agent.episode_rewards       [-self.statistics_every:])
+                max_reward = max(agent.episode_rewards[-self.statistics_every:])
+                min_reward = min(agent.episode_rewards[-self.statistics_every:])
+                self.writer.add_scalar('Episode Reward', episode_reward, episode)
+                self.writer.add_scalar('Average Reward', avg_reward, episode)
+                self.writer.add_scalar('Max Reward', max_reward, episode)
+                self.writer.add_scalar('Min Reward', min_reward, episode)
+                self.writer.add_scalar('Epsilon', agent.epsilon, episode)
+                self.writer.add_scalar('Loss', agent.loss_value, episode)
 
-                if avg_reward > 30:          #保存优秀的模型
-                    #MODEL_SAVE_AVG_REWARD = avg_reward
+                if avg_reward > self.model_save_avg_reward:          #保存优秀的模型
+                    self.model_save_avg_reward = avg_reward
                     model_dir = './models'
                     if not os.path.exists(model_dir):
                         os.makedirs(model_dir)
