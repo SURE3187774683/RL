@@ -18,6 +18,12 @@ class Cube:
         self.x = np.random.randint(0, self.size)
         self.y = np.random.randint(0, self.size)
 
+    def get_x(self):
+        return self.x
+
+    def get_y(self):
+        return self.y
+
     def __str__(self):  # 将位置转化为字符串形式
         return f'{self.x},{self.y}'
 
@@ -69,7 +75,7 @@ class Cube:
 class envCube:  # 生成环境类
     SIZE = 10           #地图大小
     NUM_PLAYERS = 1     # player的数量
-    NUM_ENEMIES = 1   # enemy的数量
+    NUM_ENEMIES = 5   # enemy的数量
 
     OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
     ACTION_SPACE_VALUES = 9 #action的数量
@@ -120,7 +126,9 @@ class envCube:  # 生成环境类
         return state
 
     def step(self, action):
-        self.episode_step += 1   
+        equal_p_e = False
+        self.episode_step += 1
+
         for i in range(self.NUM_PLAYERS):
             self.players[i].action(action)
 
@@ -139,7 +147,7 @@ class envCube:  # 生成环境类
                 new_observation += (self.players[i] - self.enemies[j])
             
 # 判断player和enemy是否重叠
-        equal_p_e = False
+        
 
         if self.old_distances>new_distances:
             reward = self.CLOSER_REWARD
@@ -157,10 +165,8 @@ class envCube:  # 生成环境类
 
             if self.players[i] == self.food:
                 reward += self.FOOD_REWARD
-
             elif equal_p_e:
                 reward += self.ENEMY_PENALITY
-
             else:
                 reward += self.MOVE_PENALITY
         done = False
@@ -172,15 +178,16 @@ class envCube:  # 生成环境类
                     done = True
 
         return new_observation, reward, done
+        
     def get_image(self):
         env = np.zeros((self.SIZE, self.SIZE, 3), dtype=np.uint8)
-        env[self.food.x][self.food.y] = self.d[self.FOOD_N]
+        env[self.food.get_x()][self.food.get_y()] = self.d[self.FOOD_N]
 
         for i in range(self.NUM_PLAYERS):        
-            env[self.players[i].x][self.players[i].y] = self.d[self.PLAYER_N]
+            env[self.players[i].get_x()][self.players[i].get_y()] = self.d[self.PLAYER_N]
 
         for i in range(self.NUM_ENEMIES):
-            env[self.enemies[i].x][self.enemies[i].y] = self.d[self.ENEMY_N]
+            env[self.enemies[i].get_x()][self.enemies[i].get_y()] = self.d[self.ENEMY_N]
 
         img = Image.fromarray(env, 'RGB')
         return img
