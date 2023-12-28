@@ -3,7 +3,7 @@
 # 静态和动态环境可选择
 # 奖惩机制可自定义
 # SURE
-
+import pickle
 import cv2
 from PIL import Image
 import numpy as np
@@ -75,7 +75,7 @@ class Cube:
 class envCube:  # 生成环境类
     SIZE = 10           #地图大小
     NUM_PLAYERS = 1     # player的数量
-    NUM_ENEMIES = 5   # enemy的数量
+    NUM_ENEMIES = 1   # enemy的数量
 
     OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
     ACTION_SPACE_VALUES = 9 #action的数量
@@ -197,4 +197,32 @@ class envCube:  # 生成环境类
         img = img.resize((800, 800))
         cv2.imshow('Predator', np.array(img))
         cv2.waitKey(1)
+
+    def get_qtable(self, qtable_name=None):
+        if qtable_name is None:
+            q_table = {}
+
+            def initialize_q_table(dimensions, ACTION_SPACE_VALUES):##定义q_table初始化函数
+                q_table = {}
+                recursive_initialize_q_table(
+                    dimensions, ACTION_SPACE_VALUES, [], q_table)
+                return q_table
+
+            def recursive_initialize_q_table(dimensions, ACTION_SPACE_VALUES, indices, q_table):
+                if len(indices) == len(dimensions):
+                    q_table[tuple(indices)] = [np.random.uniform(-5, 0)
+                                               for _ in range(ACTION_SPACE_VALUES)]
+                else:
+                    for i in range(-dimensions[len(indices)] + 1, dimensions[len(indices)]):
+                        indices.append(i)
+                        recursive_initialize_q_table(
+                            dimensions, self.ACTION_SPACE_VALUES, indices, q_table)
+                        indices.pop()
+
+            dimensions = self.NUM_PLAYERS*(self.NUM_ENEMIES*2*[self.SIZE]+[self.SIZE]+[self.SIZE])
+            q_table = initialize_q_table(dimensions, self.ACTION_SPACE_VALUES)     
+        else:
+            with open(qtable_name, 'rb') as f:
+                q_table = pickle.load(f)
+        return q_table
 
