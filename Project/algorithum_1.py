@@ -11,7 +11,9 @@ from env import envCube
 
 class Algorithum_1:
     def __init__(self,episodes, replay_memory_size, batch_size,discount, learning_rate,update_target_mode_every,statistics_every,model_save_avg_reward,epi_start, epi_end, epi_decay,visualize,verbose,show_every):
-        self.writer = SummaryWriter('logs/experiment1/')                         #创建笔
+        path = os.path.realpath(__file__)
+        filename = os.path.splitext(os.path.basename(path))[0]
+        self.writer = SummaryWriter(f'logs/{filename}')                  #创建笔
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         self.episodes = episodes
@@ -32,6 +34,8 @@ class Algorithum_1:
     def train(self):
         env = envCube()
         agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, self.replay_memory_size, self.batch_size, self.discount,self.learning_rate , self.epi_start, self.epi_end, self.epi_decay,self.device)
+
+
         for episode in range(self.episodes): 
             state = env.reset()                                 #重置环境
             done = False
@@ -63,7 +67,7 @@ class Algorithum_1:
                     env.render()
 
             if episode % self.statistics_every == 0:                 #记录有用的参数
-                avg_reward = sum(agent.episode_rewards[-self.statistics_every:])/len(agent.episode_rewards       [-self.statistics_every:])
+                avg_reward = sum(agent.episode_rewards[-self.statistics_every:])/len(agent.episode_rewards[-self.statistics_every:])
                 max_reward = max(agent.episode_rewards[-self.statistics_every:])
                 min_reward = min(agent.episode_rewards[-self.statistics_every:])
                 self.writer.add_scalar('Episode Reward', episode_reward, episode)
