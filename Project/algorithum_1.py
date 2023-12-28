@@ -11,6 +11,9 @@ from env import envCube
 
 class Algorithum_1:
     def __init__(self,episodes, replay_memory_size, batch_size,discount, learning_rate,update_target_mode_every,statistics_every,model_save_avg_reward,epi_start, epi_end, epi_decay,visualize,verbose,show_every):
+        self.writer = SummaryWriter('logs/experiment1/')                         #创建笔
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        
         self.episodes = episodes
         self.replay_memory_size = replay_memory_size
         self.batch_size = batch_size
@@ -25,10 +28,6 @@ class Algorithum_1:
         self.visualize = visualize
         self.verbose = verbose
         self.show_every = show_every
-
-        self.writer = SummaryWriter('logs/experiment1/')                         #创建笔
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
     def train(self):
         env = envCube()
@@ -53,6 +52,7 @@ class Algorithum_1:
 
             if episode % self.update_target_mode_every == 0:         #更新target_model(将当前模型的复制到目标模型)
                 agent.update_target_model()
+                
             if episode%self.show_every==0:                           #打印日志
                 print(f"Episode: {episode}        Epsilon:{agent.epsilon}")
                 if self.verbose == 1:                                #输出平均奖励
@@ -75,7 +75,7 @@ class Algorithum_1:
 
                 if avg_reward > self.model_save_avg_reward:          #保存优秀的模型
                     self.model_save_avg_reward = avg_reward
-                    model_dir = './models'
+                    model_dir = './models/experiment1/'
                     if not os.path.exists(model_dir):
                         os.makedirs(model_dir)
                     model_path = os.path.join(model_dir, f'{avg_reward:7.3f}_{int(time.time())}.model')
