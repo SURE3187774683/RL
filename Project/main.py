@@ -3,14 +3,14 @@ from algorithum_1 import Algorithum_1
 from algorithum_2 import Algorithum_2
 
 ##########################################################################
-EPISODE_N = 1000                           #总训练局数
+EPISODE_N = 10000                           #总训练局数
 REPLAY_MEMORY_SIZE = 64                   #经验池的大小
 BATCH_SIZE = 20                            #每次从经验池中取出的个数
 DISCOUNT = 0.95                             #折扣因子
 LEARNING_RATE = 1e-3                        #学习率(步长)
 UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
-STATISTICS_EVERY = 20                       #记录在tensorboard的频率
-MODEL_SAVE_AVG_REWARD = -100                 #优秀模型评价指标
+STATISTICS_EVERY = 5                       #记录在tensorboard的频率
+MODEL_SAVE_AVG_REWARD = 30                 #优秀模型评价指标
 EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
 EPI_DECAY = 0.99995                         #epsilon的缩减速率
