@@ -35,21 +35,21 @@ class Cube:
 
     def action(self, choise):  # action函数（向8个位置移动或静止）
         if choise == 0:
-            self.move(x=1, y=1)
-        elif choise == 1:
-            self.move(x=-1, y=1)
-        elif choise == 2:
-            self.move(x=1, y=-1)
-        elif choise == 3:
-            self.move(x=-1, y=-1)
-        elif choise == 4:
             self.move(x=0, y=1)
-        elif choise == 5:
+        elif choise == 1:
             self.move(x=0, y=-1)
-        elif choise == 6:
+        elif choise == 2:
             self.move(x=1, y=0)
-        elif choise == 7:
+        elif choise == 3:
             self.move(x=-1, y=0)
+        elif choise == 4:
+            self.move(x=1, y=1)
+        elif choise == 5:
+            self.move(x=-1, y=1)
+        elif choise == 6:
+            self.move(x=1, y=-1)
+        elif choise == 7:
+            self.move(x=-1, y=-1)
         elif choise == 8:
             self.move(x=0, y=0)
 
@@ -62,7 +62,7 @@ class Cube:
             self.y += np.random.randint(-1, 2)
         else:
             self.y += y
-
+            
         if self.x < 0:  # 检测环境边界
             self.x = 0
         elif self.x >= self.size:
@@ -78,7 +78,7 @@ class envCube:  # 生成环境类
     NUM_ENEMIES = 1   # enemy的数量
 
     OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
-    ACTION_SPACE_VALUES = 9 #action的数量
+    ACTION_SPACE_VALUES = 4 #action的数量
 
     FOOD_REWARD = 100
     ENEMY_PENALITY = -10
@@ -97,6 +97,8 @@ class envCube:  # 生成环境类
     ENEMY_N = 3
 
     def reset(self):
+        self.trajectory = []          # 在每个步骤开始之前清空轨迹列表
+        
         self.old_distances = 0
         self.players = []            # 创建players列表
         for i in range(self.NUM_PLAYERS):
@@ -127,7 +129,7 @@ class envCube:  # 生成环境类
 
     def step(self, action):
         equal_p_e = False
-        self.episode_step += 1
+        self.episode_step += 1        
 
         for i in range(self.NUM_PLAYERS):
             self.players[i].action(action)
@@ -146,9 +148,7 @@ class envCube:  # 生成环境类
             for j in range(self.NUM_ENEMIES):
                 new_observation += (self.players[i] - self.enemies[j])
             
-# 判断player和enemy是否重叠
-        
-
+        # 判断player和enemy是否重叠
         if self.old_distances>new_distances:
             reward = self.CLOSER_REWARD
         elif self.old_distances<new_distances:
@@ -171,6 +171,10 @@ class envCube:  # 生成环境类
                 reward += self.MOVE_PENALITY
         done = False
 
+        #将智能体的位置添加到轨迹列表中
+        for i in range(self.NUM_PLAYERS):
+            self.trajectory.append((self.players[i].get_x(), self.players[i].get_y()))
+
         #所有玩家被吃掉/都到达/超过200步，游戏结束
         for i in range(self.NUM_PLAYERS):
             for j in range(self.NUM_ENEMIES):
@@ -192,9 +196,27 @@ class envCube:  # 生成环境类
         img = Image.fromarray(env, 'RGB')
         return img
 
+    def render_trajectory(self,flag):
+        img = self.get_image()
+        img = img.resize((800, 800))
+        img_arr = np.array(img)
+        # 绘制智能体轨迹
+        rate = 89
+        for i in range(len(self.trajectory) - 1):
+            point1 = (int(self.trajectory[i][0])*rate, int(self.trajectory[i][1])*rate)
+            point2 = (int(self.trajectory[i+1][0])*rate, int(self.trajectory[i+1][1])*rate)
+            cv2.line(img_arr, point1, point2, (255, 255, 255), 20)
+
+        img_with_trajectory = Image.fromarray(img_arr, 'RGB')
+        if flag==1:
+            img_with_trajectory.save("trajectory_1.png")  # 保存带有轨迹的图像
+        if flag==2:
+            img_with_trajectory.save("trajectory_2.png")  # 保存带有轨迹的图像
+
     def render(self):
         img = self.get_image()
         img = img.resize((800, 800))
+
         cv2.imshow('Predator', np.array(img))
         cv2.waitKey(1)
 
@@ -225,4 +247,3 @@ class envCube:  # 生成环境类
             with open(qtable_name, 'rb') as f:
                 q_table = pickle.load(f)
         return q_table
-
