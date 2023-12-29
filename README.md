@@ -4,7 +4,7 @@
 #### 1.my_learning_experience（本人的rl学习经历）
 #### 2.project（创建的项目）
 
-## Fream
+## Version
 #### Ubuntu-22.04
 #### tensorflow-2.15.0
 #### pytorch-2.1.1
