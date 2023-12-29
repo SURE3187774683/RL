@@ -11,9 +11,9 @@ from env import envCube
 
 class Algorithum_1:
     def __init__(self,episodes, replay_memory_size, batch_size,discount, learning_rate,update_target_mode_every,statistics_every,model_save_avg_reward,epi_start, epi_end, epi_decay,visualize,verbose,show_every):
-        path = os.path.realpath(__file__)
-        filename = os.path.splitext(os.path.basename(path))[0]
-        self.writer = SummaryWriter(f'logs/{filename}')                  #创建笔
+        self.path = os.path.realpath(__file__)
+        self.filename = os.path.splitext(os.path.basename(self.path))[0]
+        self.writer = SummaryWriter(f'logs/{self.filename}')                  #创建笔
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
         self.episodes = episodes
@@ -51,7 +51,7 @@ class Algorithum_1:
                 episode_reward += reward                        #累加当次训练的reward
 
                 if done:
-                    agent.episode_rewards.append(episode_reward)#收集所有训练累计的rewar
+                    agent.episode_rewards.append(episode_reward)#收集所有训练累计的reward
                     break
 
             if episode % self.update_target_mode_every == 0:         #更新target_model(将当前模型的复制到目标模型)
@@ -77,9 +77,11 @@ class Algorithum_1:
                 self.writer.add_scalar('Epsilon', agent.epsilon, episode)
                 self.writer.add_scalar('Loss', agent.loss_value, episode)
 
-                if avg_reward > self.model_save_avg_reward:          #保存优秀的模型
+                if avg_reward > self.model_save_avg_reward and avg_reward < 90:          #保存优秀的模型
+
+                    env.render_trajectory(1)  # 保存智能体轨迹图像
                     self.model_save_avg_reward = avg_reward
-                    model_dir = './models/experiment1/'
+                    model_dir = f'./models/{self.filename}'
                     if not os.path.exists(model_dir):
                         os.makedirs(model_dir)
                     model_path = os.path.join(model_dir, f'{avg_reward:7.3f}_{int(time.time())}.model')
