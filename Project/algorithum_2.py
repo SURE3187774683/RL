@@ -91,5 +91,10 @@ class Algorithum_2:
                 self.writer.add_scalar('Min Reward', min_reward, episode)
                 self.writer.add_scalar('Epsilon', epsilon, episode)
 
+                if avg_reward > self.model_save_avg_reward and avg_reward < 90:          #保存优秀的模型
+
+                    env.render_trajectory(2)  # 保存智能体轨迹图像
+                    self.model_save_avg_reward = avg_reward
+
 #with open(f'qtable_{int(time.time())}.pickle','wb') as f:
 #    pickle.dump(q_table,f)
