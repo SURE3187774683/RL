@@ -1,3 +1,5 @@
+#Q-learning算法
+
 import numpy as np
 import time
 import os
@@ -58,19 +60,20 @@ class Algorithum_2:
                 max_future_q = torch.max(q_table[new_obs])
 
                 if reward == env.FOOD_REWARD:
-                    new_q = env.FOOD_REWARD
+                    new_q = torch.tensor(env.FOOD_REWARD, dtype=torch.float32).to(self.device)
                 else:
                     new_q = current_q + self.learning_rate * (reward + self.discount * max_future_q - current_q)
+                    new_q = new_q.to(self.device)
+                epsilon = max(self.epi_end, epsilon * self.epi_decay)
 
                 q_table[obs][action] = new_q.to(self.device)  # 将更新后的值移动到GPU上
                 obs = new_obs
-                epsilon = max(self.epi_end, epsilon * self.epi_decay)
                 episode_reward += reward
-
+                
                 if done:
                     episode_rewards.append(episode_reward)
                     break
-                
+
             if episode % self.show_every == 0:
                 print(f"Episode: {episode}        Epsilon:{epsilon}")
                 if self.verbose == 1:
