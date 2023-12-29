@@ -73,8 +73,8 @@ class Cube:
             self.y = self.size - 1
 
 class envCube:  # 生成环境类
-    SIZE = 10           #地图大小
-    NUM_PLAYERS = 1     # player的数量
+    SIZE = 10         #地图大小
+    NUM_PLAYERS = 1   # player的数量
     NUM_ENEMIES = 1   # enemy的数量
 
     OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
