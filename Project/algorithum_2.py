@@ -13,8 +13,7 @@ import numpy as np
 from env import envCube
 
 class Algorithum_2:
-    def __init__(self, episodes, replay_memory_size, batch_size, discount, learning_rate, update_target_mode_every,
-                 statistics_every, model_save_avg_reward, epi_start, epi_end, epi_decay, visualize, verbose, show_every):
+    def __init__(self, episodes, discount, learning_rate,statistics_every, model_save_avg_reward, epi_start, epi_end, epi_decay, visualize, verbose, show_every):
 
         path = os.path.realpath(__file__)
         filename = os.path.splitext(os.path.basename(path))[0]
@@ -22,11 +21,8 @@ class Algorithum_2:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.episodes = episodes
-        self.replay_memory_size = replay_memory_size
-        self.batch_size = batch_size
         self.discount = discount
         self.learning_rate = learning_rate
-        self.update_target_mode_every = update_target_mode_every
         self.statistics_every = statistics_every
         self.model_save_avg_reward = model_save_avg_reward
         self.epi_start = epi_start
