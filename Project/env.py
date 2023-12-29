@@ -196,7 +196,7 @@ class envCube:  # 生成环境类
         img = Image.fromarray(env, 'RGB')
         return img
 
-    def render_trajectory(self,flag):
+    def render_trajectory(self,flag):   #收集agent的路径轨迹点
         img = self.get_image()
         img = img.resize((800, 800))
         img_arr = np.array(img)
@@ -213,14 +213,14 @@ class envCube:  # 生成环境类
         if flag==2:
             img_with_trajectory.save("trajectory_2.png")  # 保存带有轨迹的图像
 
-    def render(self):
+    def render(self):                   #显示图片
         img = self.get_image()
         img = img.resize((800, 800))
-
         cv2.imshow('Predator', np.array(img))
         cv2.waitKey(1)
 
-    def get_qtable(self, qtable_name=None):
+# 用于qlearning
+    def get_qtable(self, qtable_name=None): #搭建q table表格
         if qtable_name is None:
             q_table = {}
 
@@ -247,3 +247,17 @@ class envCube:  # 生成环境类
             with open(qtable_name, 'rb') as f:
                 q_table = pickle.load(f)
         return q_table
+
+#用于A*
+    def get_start_position(self):
+        return (self.players[0].get_x(), self.players[0].get_y())
+
+    def get_goal_position(self):
+        return (self.food.get_x(), self.food.get_y())
+
+    def get_neighbor_positions(self, position):
+        # 返回指定位置的相邻位置列表
+        # 注意考虑环境边界等约束条件
+        neighbors = []
+        # ...
+        return neighbors
