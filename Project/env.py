@@ -247,17 +247,3 @@ class envCube:  # 生成环境类
             with open(qtable_name, 'rb') as f:
                 q_table = pickle.load(f)
         return q_table
-
-#用于A*
-    def get_start_position(self):
-        return (self.players[0].get_x(), self.players[0].get_y())
-
-    def get_goal_position(self):
-        return (self.food.get_x(), self.food.get_y())
-
-    def get_neighbor_positions(self, position):
-        # 返回指定位置的相邻位置列表
-        # 注意考虑环境边界等约束条件
-        neighbors = []
-        # ...
-        return neighbors
