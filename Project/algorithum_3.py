@@ -51,6 +51,24 @@ def is_valid_position(position, size):
     x, y = position
     return 0 <= x < size and 0 <= y < size
 
+def render(path, agent, food, enemies, size):
+    img = Image.new('RGB', (size, size), (0, 0, 0))  # 创建一个空白的RGB图像
+
+    for enemy in enemies:                   # 绘制敌人-红色
+        img.putpixel((enemy[1], enemy[0]),  (255, 0, 0))
+
+    img.putpixel((agent[1], agent[0]),(0, 0, 255))   # 绘制智能体-蓝色
+    img.putpixel((food[1], food[0]), (0, 255, 0))   # 绘制食物-绿色
+
+    for position in path:                   # 绘制路径-白色
+        img.putpixel((position[1], position[0]), (255, 255, 255))
+
+    img = img.resize((800, 800))
+    img.show()
+    cv2.waitKey(0)
+    img.save("trajectory_3.png")  # 保存带有轨迹的图像
+
+
 def astar_search(agent, food, enemies, size, env):
     open_set = PriorityQueue()
     start_node = AStarNode(agent, 0, heuristic_cost_estimate(agent, food))
@@ -81,37 +99,25 @@ def astar_search(agent, food, enemies, size, env):
                 neighbor = AStarNode(next_position, g_score, f_score, current_node)
                 open_set.put(neighbor)
 
-    return None
-
-def render(path, agent, food, enemies, size):
-    img = Image.new('RGB', (size, size), (0, 0, 0))  # 创建一个空白的RGB图像
-
-    for enemy in enemies:                   # 绘制敌人-红色
-        img.putpixel((enemy[1], enemy[0]),  (255, 0, 0))
-
-    img.putpixel((agent[1], agent[0]),(0, 0, 255))   # 绘制智能体-蓝色
-    img.putpixel((food[1], food[0]), (0, 255, 0))   # 绘制食物-绿色
-
-    for position in path:                   # 绘制路径-白色
-        img.putpixel((position[1], position[0]), (255, 255, 255))
-
-    img = img.resize((800, 800))
-    img.show()
-    cv2.waitKey(0)
-    img.save("trajectory_3.png")  # 保存带有轨迹的图像
+class Algorithum_3:
+    def train(self):
+        env = envCube()
+        env.reset()
+        agent = (env.players[0].get_x(), env.players[0].get_y())
+        food = (env.food.get_x(), env.food.get_y())
+        enemies = set()
+        for enemy in env.enemies:
+            enemies.add((enemy.get_x(), enemy.get_y()))
+        path = astar_search(agent, food, enemies, env.SIZE, env)
+        print("Path:", path)
+        render(path, agent, food, enemies, env.SIZE)
 
 
-env = envCube()
-state = env.reset()
-agent = (env.players[0].get_x(), env.players[0].get_y())
-food = (env.food.get_x(), env.food.get_y())
-enemies = set()
-for enemy in env.enemies:
-    enemies.add((enemy.get_x(), enemy.get_y()))
-path = astar_search(agent, food, enemies, env.SIZE, env)
 
-if path is not None:  # 输出路径
-    print("Path:", path)
-    render(path, agent, food, enemies, env.SIZE)
-else:
-    print("No path found.")
+
+
+
+
+
+
+    
