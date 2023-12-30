@@ -1,4 +1,4 @@
-#训练两种算法
+#可实现三种算法
 from algorithum_1 import Algorithum_1 
 from algorithum_2 import Algorithum_2
 from algorithum_3 import Algorithum_3
@@ -10,7 +10,7 @@ BATCH_SIZE = 20                             #每次从经验池中取出的个�
 DISCOUNT = 0.95                             #折扣因子
 UPDATE_TARGET_MODE_EVERY = 20               #model更新频率
 STATISTICS_EVERY = 5                        #记录在tensorboard的频率
-MODEL_SAVE_AVG_REWARD = 70                  #优秀模型评价指标
+MODEL_SAVE_AVG_REWARD = 60                  #优秀模型评价指标
 EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
 EPI_DECAY = 0.99998                         #epsilon的缩减速率
@@ -26,7 +26,7 @@ demo_2 = Algorithum_2(episodes = EPISODE_N, discount = DISCOUNT, learning_rate =
 
 demo_3 = Algorithum_3()
 
-#demo_1.train()
+demo_1.train()
 #demo_2.train()
-demo_3.train()
+#demo_3.train()
 
