@@ -51,6 +51,10 @@ def is_valid_position(position, size):
     x, y = position
     return 0 <= x < size and 0 <= y < size
 
+import cv2
+import numpy as np
+from PIL import Image
+
 def render(path, agent, food, enemies, size):
     img = Image.new('RGB', (size, size), (0, 0, 0))  # 创建一个空白的RGB图像
 
@@ -60,8 +64,14 @@ def render(path, agent, food, enemies, size):
     img.putpixel((agent[1], agent[0]),(0, 0, 255))   # 绘制智能体-蓝色
     img.putpixel((food[1], food[0]), (0, 255, 0))   # 绘制食物-绿色
 
-    for position in path:                   # 绘制路径-白色
-        img.putpixel((position[1], position[0]), (255, 255, 255))
+    img_array = np.array(img)  # 将PIL图像转换为NumPy数组
+
+    for i in range(len(path) - 1):                   # 绘制路径-白色
+        pt1 = (path[i][1], path[i][0])
+        pt2 = (path[i+1][1], path[i+1][0])
+        cv2.line(img_array, pt1, pt2, (255, 255, 255), 1, cv2.LINE_AA)
+
+    img = Image.fromarray(img_array)  # 将NumPy数组转换为PIL图像
 
     img = img.resize((800, 800))
     img.show()
