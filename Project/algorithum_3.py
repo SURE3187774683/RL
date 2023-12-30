@@ -121,3 +121,13 @@ class Algorithum_3:
         path = astar_search(agent, food, enemies, env.SIZE, env)
         print("Path:", path)
         render(path, agent, food, enemies, env.SIZE)
+
+
+
+
+
+
+
+
+
+    
