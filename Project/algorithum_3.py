@@ -1,6 +1,6 @@
 #A*算法
 
-
+from PIL import Image
 import numpy as np
 from queue import PriorityQueue
 import cv2
@@ -83,28 +83,25 @@ def astar_search(agent, food, enemies, size, env):
 
     return None
 
-env = envCube()
 def render(path, agent, food, enemies, size):
-    img = np.zeros((size, size, 3), dtype=np.uint8)  # 创建一个空白图像
+    img = Image.new('RGB', (size, size), (0, 0, 0))  # 创建一个空白的RGB图像
 
-    # 绘制敌人
-    for enemy in enemies:
-        img[enemy[0], enemy[1]] = (0, 0, 255)  # 红色
+    for enemy in enemies:                   # 绘制敌人-红色
+        img.putpixel((enemy[1], enemy[0]),  (255, 0, 0))
 
-    # 绘制智能体
-    img[agent[0], agent[1]] = (0, 255, 0)  # 绿色
+    img.putpixel((agent[1], agent[0]),(0, 0, 255))   # 绘制智能体-蓝色
+    img.putpixel((food[1], food[0]), (0, 255, 0))   # 绘制食物-绿色
 
-    # 绘制食物
-    img[food[0], food[1]] = (255, 0, 0)  # 蓝色
+    for position in path:                   # 绘制路径-白色
+        img.putpixel((position[1], position[0]), (255, 255, 255))
 
-    # 绘制路径
-    for position in path:
-        img[position[0], position[1]] = (255, 255, 255)  # 白色
-
-    img = cv2.resize(img, (800, 800))
-    cv2.imshow('Predator', img)
+    img = img.resize((800, 800))
+    img.show()
     cv2.waitKey(0)
+    img.save("trajectory_3.png")  # 保存带有轨迹的图像
 
+
+env = envCube()
 state = env.reset()
 agent = (env.players[0].get_x(), env.players[0].get_y())
 food = (env.food.get_x(), env.food.get_y())
