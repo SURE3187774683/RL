@@ -198,8 +198,10 @@ class envCube:  # 生成环境类
 
     def render_trajectory(self,flag):   #收集agent的路径轨迹点
         img = Image.new('RGB', (self.SIZE, self.SIZE), (0, 0, 0))  # 创建一个空白的RGB图像
+        
         agent = (self.players[0].get_x(),self.players[0].get_y())
         food = (self.food.get_x(), self.food.get_x())
+
         enemies = set()
         for i in range(self.NUM_ENEMIES):  # 使用range创建范围对象
             enemies.add((self.enemies[i].get_x(), self.enemies[i].get_y()))
@@ -207,8 +209,8 @@ class envCube:  # 生成环境类
         for enemy in enemies:                   # 绘制敌人-红色
             img.putpixel((enemy[1], enemy[0]),  (255, 0, 0))
 
-        img.putpixel((agent[1], agent[0]),(0, 0, 255))   # 绘制智能体-蓝色
-        img.putpixel((food[1], food[0]), (0, 255, 0))   # 绘制食物-绿色
+        #img.putpixel((agent[1], agent[0]),(0, 0, 255))   # 绘制智能体-蓝色
+        #img.putpixel((food[1], food[0]), (0, 255, 0))   # 绘制食物-绿色
 
         img_arr = np.array(img)  # 将PIL图像转换为NumPy数组
         
