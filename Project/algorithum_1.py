@@ -35,7 +35,6 @@ class Algorithum_1:
         env = envCube()
         agent = DQNAgent(env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, self.replay_memory_size, self.batch_size, self.discount,self.learning_rate , self.epi_start, self.epi_end, self.epi_decay,self.device)
 
-
         for episode in range(self.episodes): 
             state = env.reset()                                 #重置环境
             done = False
