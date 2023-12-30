@@ -1,6 +1,7 @@
 #训练两种算法
 from algorithum_1 import Algorithum_1 
 from algorithum_2 import Algorithum_2
+from algorithum_3 import Algorithum_3
 
 ##########################################################################
 EPISODE_N = 50000                           #总训练局数
@@ -23,6 +24,9 @@ demo_1 = Algorithum_1(episodes = EPISODE_N, replay_memory_size = REPLAY_MEMORY_S
 
 demo_2 = Algorithum_2(episodes = EPISODE_N, discount = DISCOUNT, learning_rate = 0.7,statistics_every = STATISTICS_EVERY,model_save_avg_reward = MODEL_SAVE_AVG_REWARD,epi_start = EPI_START, epi_end = EPI_END, epi_decay = EPI_DECAY,visualize = VISUALIZE,verbose = VERBOSE,show_every = SHOW_EVERY)
 
+demo_3 = Algorithum_3()
+
 #demo_1.train()
-demo_2.train()
+#demo_2.train()
+demo_3.train()
 
