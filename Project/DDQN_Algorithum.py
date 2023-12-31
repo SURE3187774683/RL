@@ -9,7 +9,7 @@ from agent import DQNAgent
 from agent import DQN
 from env import envCube
 
-class Algorithum_1:
+class DDQN:
     def __init__(self,episodes, replay_memory_size, batch_size,discount, learning_rate,update_target_mode_every,statistics_every,model_save_avg_reward,epi_start, epi_end, epi_decay,visualize,verbose,show_every):
         self.path = os.path.realpath(__file__)
         self.filename = os.path.splitext(os.path.basename(self.path))[0]
