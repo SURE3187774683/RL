@@ -12,7 +12,7 @@ from tensorboardX import SummaryWriter
 import numpy as np
 from env import envCube
 
-class Algorithum_2:
+class Q_learning:
     def __init__(self, episodes, discount, learning_rate,statistics_every, model_save_avg_reward, epi_start, epi_end, epi_decay, visualize, verbose, show_every):
 
         path = os.path.realpath(__file__)
