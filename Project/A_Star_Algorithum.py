@@ -109,7 +109,7 @@ def astar_search(agent, food, enemies, size, env):
                 neighbor = AStarNode(next_position, g_score, f_score, current_node)
                 open_set.put(neighbor)
 
-class Algorithum_3:
+class A_Star:
     def train(self):
         env = envCube()
         env.reset()
