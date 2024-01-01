@@ -1,8 +1,8 @@
 # RL for Path-Planning
 
 ## Main
-#### 1.my_learning_experience（本人的rl学习经历）
-#### 2.project（创建的项目）
+#### 1.project（RL入门的项目）
+#### 2.my_learning_experience（本人的rl学习经历）
 
 ## Version
 #### Ubuntu-22.04
