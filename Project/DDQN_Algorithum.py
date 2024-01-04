@@ -51,6 +51,7 @@ class DDQN:
 
                 if done:
                     agent.episode_rewards.append(episode_reward)#收集所有训练累计的reward
+                    env.render_trajectory(1)  # 保存智能体轨迹图像
                     break
 
             if episode % self.update_target_mode_every == 0:         #更新target_model(将当前模型的复制到目标模型)
@@ -77,8 +78,6 @@ class DDQN:
                 self.writer.add_scalar('Loss', agent.loss_value, episode)
 
                 if avg_reward > self.model_save_avg_reward and avg_reward < 90:          #保存优秀的模型
-
-                    env.render_trajectory(1)  # 保存智能体轨迹图像
                     self.model_save_avg_reward = avg_reward
                     model_dir = f'./models/{self.filename}'
                     if not os.path.exists(model_dir):
