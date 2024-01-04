@@ -13,10 +13,18 @@ MAX_STEP = 200                              #每局最大步数
 
 # 建立Cube类，用于创建player、food和enemy
 class Cube:
-    def __init__(self, size):  # 随机生成个体的位置
+    def __init__(self, size, x=None, y=None):  # 随机生成个体的位置
         self.size = size
-        self.x = np.random.randint(0, self.size)
-        self.y = np.random.randint(0, self.size)
+        if x is not None and y is not None:
+            self.x = x
+            self.y = y
+        else:
+            self.x = np.random.randint(0, self.size)
+            self.y = np.random.randint(0, self.size)
+
+    def create_enemy_at_position(self, x, y):
+        enemy = Cube(self.size, x, y)
+        return enemy
 
     def get_x(self):
         return self.x
@@ -74,8 +82,9 @@ class Cube:
 
 class envCube:  # 生成环境类
     SIZE = 30         #地图大小
+    enemy_positions = [(1, 3), (4, 5), (6, 3)]  # 指定enemy的位置
     NUM_PLAYERS = 1   # player的数量
-    NUM_ENEMIES = 1   # enemy的数量
+    NUM_ENEMIES = len(enemy_positions)   # enemy的数量
 
     OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
     ACTION_SPACE_VALUES = 4 #action的数量
@@ -111,12 +120,14 @@ class envCube:  # 生成环境类
                 self.food = Cube(self.SIZE)
 
         self.enemies = []                   # 创建enemy
+
+        
+        
         for i in range(self.NUM_PLAYERS):
             for j in range(self.NUM_ENEMIES):
-                self.enemy = Cube(self.SIZE)
-                while self.enemy == self.players[i] or self.enemy == self.food or self.enemy in self.enemies:
-                    self.enemy = Cube(self.SIZE)
-                self.enemies.append(self.enemy)
+                x, y = self.enemy_positions[j]  # 获取指定位置的坐标
+                enemy = Cube(self.SIZE, x, y)  # 使用指定位置创建enemy
+                self.enemies.append(enemy)
 
         state = ()
         for i in range(self.NUM_PLAYERS):
