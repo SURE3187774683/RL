@@ -7,9 +7,10 @@ import pickle
 import cv2
 from PIL import Image
 import numpy as np
+from PIL import Image, ImageDraw
 
 ENV_MOVE = False                            #env是否变化
-MAX_STEP = 200                              #每局最大步数
+MAX_STEP = 400                              #每局最大步数
 
 # 建立Cube类，用于创建player、food和enemy
 class Cube:
@@ -82,7 +83,7 @@ class Cube:
 
 class envCube:  # 生成环境类
     SIZE = 30         #地图大小
-    enemy_positions = [(1, 3), (4, 5), (6, 3)]  # 指定enemy的位置
+    enemy_positions = [(1,2), (2,2), (3,2),(3,3),(23,1),(6,1), (6,2), (7,2),(8,2),(10,4)]  # 指定enemy的位置
     NUM_PLAYERS = 1   # player的数量
     NUM_ENEMIES = len(enemy_positions)   # enemy的数量
 
@@ -111,17 +112,16 @@ class envCube:  # 生成环境类
         self.old_distances = 0
         self.players = []            # 创建players列表
         for i in range(self.NUM_PLAYERS):
-            self.player = Cube(self.SIZE)        # 创建player
+            self.player = Cube(self.SIZE,0,0)        # 创建player
             self.players.append(self.player)
 
-        self.food = Cube(self.SIZE)         # 创建food
+        self.food = Cube(self.SIZE,24,24)         # 创建food
+
         for i in range(self.NUM_PLAYERS):   
             while self.food == self.players[i]:
                 self.food = Cube(self.SIZE)
 
         self.enemies = []                   # 创建enemy
-
-        
         
         for i in range(self.NUM_PLAYERS):
             for j in range(self.NUM_ENEMIES):
@@ -208,33 +208,31 @@ class envCube:  # 生成环境类
 
         img = Image.fromarray(env, 'RGB')
         return img
+        
+    def render_trajectory(self, flag):
+        img = Image.new('RGB', (self.SIZE, self.SIZE), (255, 255, 255))  # 创建一个空白的白色图像
 
-    def render_trajectory(self,flag):   #收集agent的路径轨迹点
-        img = np.zeros((self.SIZE, self.SIZE, 3), dtype=np.uint8)  # 创建一个空白的RGB图像
-        img[:, :] = (255, 255, 255)
-
-        agent = (self.players[0].get_x(),self.players[0].get_y())
+        agent = (self.players[0].get_x(), self.players[0].get_y())
         food = (self.food.get_x(), self.food.get_x())
 
         enemies = set()
-        for i in range(self.NUM_ENEMIES):  # 使用range创建范围对象
+        for i in range(self.NUM_ENEMIES):
             enemies.add((self.enemies[i].get_x(), self.enemies[i].get_y()))
-        
+
+        draw = ImageDraw.Draw(img)
+
         for enemy in enemies:  # 绘制敌人-红色
-            cv2.circle(img, enemy, 1, (0, 0, 255), -1)
+            draw.point((enemy[1], enemy[0]), (255, 0, 0))
 
-        cv2.circle(img, agent, 1, (255, 0, 0), -1)  # 绘制智能体-蓝色
-        cv2.circle(img, food, 1, (0, 255, 0), -1)  # 绘制食物-绿色
+        draw.point((agent[1], agent[0]), (0, 0, 255))  # 绘制智能体-蓝色
+        draw.point((food[1], food[0]), (0, 255, 0))  # 绘制食物-绿色
 
-        img_arr = np.array(img)  # 将PIL图像转换为NumPy数组
-        
         # 绘制智能体轨迹
         for i in range(len(self.trajectory) - 1):
-            point1 = ((self.trajectory[i][0]), (self.trajectory[i][1]))
-            point2 = ((self.trajectory[i+1][0]), (self.trajectory[i+1][1]))
-            cv2.line(img_arr, point1, point2, (255, 255, 0), 1)
+            point1 = (self.trajectory[i][1], self.trajectory[i][0])
+            point2 = (self.trajectory[i+1][1], self.trajectory[i+1][0])
+            draw.line([point1, point2], fill=(255, 255, 0), width=1)
 
-        img = Image.fromarray(img_arr)  # 将NumPy数组转换为PIL图像
         img = img.resize((800, 800))
         img.show()
 
