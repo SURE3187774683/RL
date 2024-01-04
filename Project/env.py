@@ -73,7 +73,7 @@ class Cube:
             self.y = self.size - 1
 
 class envCube:  # 生成环境类
-    SIZE = 10         #地图大小
+    SIZE = 30         #地图大小
     NUM_PLAYERS = 1   # player的数量
     NUM_ENEMIES = 1   # enemy的数量
 
@@ -185,7 +185,7 @@ class envCube:  # 生成环境类
         
     def get_image(self):
         env = np.zeros((self.SIZE, self.SIZE, 3), dtype=np.uint8)
-        env[:, :] = (255, 255, 255)  # 设置背景颜色为黄色
+        env[:, :] = (255, 255, 255)  # 设置背景颜色为白色
 
         env[self.food.get_x()][self.food.get_y()] = self.d[self.FOOD_N]
 
@@ -199,20 +199,21 @@ class envCube:  # 生成环境类
         return img
 
     def render_trajectory(self,flag):   #收集agent的路径轨迹点
-        img = Image.new('RGB', (self.SIZE, self.SIZE), (255, 255, 0))  # 创建一个空白的RGB图像
-        
+        img = np.zeros((self.SIZE, self.SIZE, 3), dtype=np.uint8)  # 创建一个空白的RGB图像
+        img[:, :] = (255, 255, 255)
+
         agent = (self.players[0].get_x(),self.players[0].get_y())
         food = (self.food.get_x(), self.food.get_x())
 
         enemies = set()
         for i in range(self.NUM_ENEMIES):  # 使用range创建范围对象
             enemies.add((self.enemies[i].get_x(), self.enemies[i].get_y()))
+        
+        for enemy in enemies:  # 绘制敌人-红色
+            cv2.circle(img, enemy, 1, (0, 0, 255), -1)
 
-        for enemy in enemies:                   # 绘制敌人-红色
-            img.putpixel((enemy[1], enemy[0]),  (255, 0, 0))
-
-        img.putpixel((agent[1], agent[0]),(0, 0, 255))   # 绘制智能体-蓝色
-        img.putpixel((food[1], food[0]), (0, 255, 0))   # 绘制食物-绿色
+        cv2.circle(img, agent, 1, (255, 0, 0), -1)  # 绘制智能体-蓝色
+        cv2.circle(img, food, 1, (0, 255, 0), -1)  # 绘制食物-绿色
 
         img_arr = np.array(img)  # 将PIL图像转换为NumPy数组
         
@@ -220,7 +221,7 @@ class envCube:  # 生成环境类
         for i in range(len(self.trajectory) - 1):
             point1 = ((self.trajectory[i][0]), (self.trajectory[i][1]))
             point2 = ((self.trajectory[i+1][0]), (self.trajectory[i+1][1]))
-            cv2.line(img_arr, point1, point2, (255, 255, 255), 1)
+            cv2.line(img_arr, point1, point2, (255, 255, 0), 1)
 
         img = Image.fromarray(img_arr)  # 将NumPy数组转换为PIL图像
         img = img.resize((800, 800))
