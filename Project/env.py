@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 ENV_MOVE = False                            #env是否变化
-MAX_STEP = 400                              #每局最大步数
+MAX_STEP = 350                              #每局最大步数
 
 # 建立Cube类，用于创建player、food和enemy
 class Cube:
@@ -83,19 +83,46 @@ class Cube:
 
 class envCube:  # 生成环境类
     SIZE = 30         #地图大小
-    enemy_positions = [(1,2), (2,2), (3,2),(3,3),(23,1),(6,1), (6,2), (7,2),(8,2),(10,4)]  # 指定enemy的位置
+    enemy_positions = [  (5,8),(6,8), 
+                         (5,9),(6,9),
+                         (5,10),(6,10),
+
+                         (9,2), (10,2),(11,2),(12,2),(13,2), (14,2),(15,2),(16,2),(17,2),(9,3),(9,4),
+                         
+                         (22,5), (23,5),(24,5),
+                         (22,6), (23,6),(24,6),
+                         (22,7), (23,7),(24,7), 
+                         (22,8), (23,8),(24,8),
+                         (22,9), (23,9),(24,9),
+
+                         (11,10),(12,10),(13,10),(14,10),(15,10),(16,10),
+                         (11,11),(12,11),
+                         (11,12),(12,12),
+                         (11,13),(12,13),
+                         
+                         (3,20),(4,20),(5,20),
+                         (3,21),(4,21),(5,21),(3,23),(3,24),(3,25),
+                         (3,22),(4,22),(5,22),
+
+                         (14,20), (14,21),(14,22),(14,23), (14,24),(14,25),(14,26),(14,27),
+                                          (15,22),(15,23), (15,24),(15,25),(15,26),(15,27),
+                         
+                         (21,17), (22,17),(23,17),(24,17), (25,17),(26,17),
+                         (21,18), (22,18),(23,18),(24,18), (25,18),(26,18),(26,19),
+                         (26,20),(26,21),(26,22),(26,23),(26,24)]  # 指定enemy的位置
+
     NUM_PLAYERS = 1   # player的数量
     NUM_ENEMIES = len(enemy_positions)   # enemy的数量
 
     OBSERVATION_SPACE_VALUES = (2+2*NUM_ENEMIES)*NUM_PLAYERS  # state的数量
-    ACTION_SPACE_VALUES = 4 #action的数量
+    ACTION_SPACE_VALUES = 9 #action的数量
 
     FOOD_REWARD = 100
     ENEMY_PENALITY = -10
-    MOVE_PENALITY = -0.1
-    CLOSER_REWARD = 0.2
-    FARER_PENALITY = -0.2
-    STAY_REWARD = 0.1
+    MOVE_PENALITY = -4
+    CLOSER_REWARD = 5
+    FARER_PENALITY = -5
+    STAY_REWARD = 0
 
     # 创建一个字典，用于存放agent的RGB
     d = {1: (255, 0, 0),  # blue
@@ -115,7 +142,7 @@ class envCube:  # 生成环境类
             self.player = Cube(self.SIZE,0,0)        # 创建player
             self.players.append(self.player)
 
-        self.food = Cube(self.SIZE,24,24)         # 创建food
+        self.food = Cube(self.SIZE,23,23)         # 创建food
 
         for i in range(self.NUM_PLAYERS):   
             while self.food == self.players[i]:
