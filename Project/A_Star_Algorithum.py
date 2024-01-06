@@ -65,15 +65,15 @@ def render(path, agent, food, enemies, size):
         rect = plt.Rectangle((enemy[1], enemy[0]), 1, 1, facecolor='red')
         ax.add_patch(rect)
 
-    rect = plt.Rectangle((agent[1], agent[0]), 1, 1, facecolor='blue')  # 绘制智能体-蓝色
+    rect = plt.Circle((agent[1], agent[0]), radius=0.5, facecolor='blue')  # 绘制智能体-蓝色
     ax.add_patch(rect)
 
-    rect = plt.Rectangle((food[1], food[0]), 1, 1, facecolor='green')  # 绘制食物-绿色
+    rect = plt.Circle((food[1], food[0]), radius=0.5, facecolor='green')  # 绘制食物-绿色
     ax.add_patch(rect)
 
     x = [point[1] for point in path]
     y = [point[0] for point in path]
-    ax.plot(x, y, color='yellow', linewidth=1)
+    ax.plot(x, y, color='yellow', linewidth=5)
 
     plt.savefig("trajectory_3.png")  # 保存图像到文件
     plt.close(fig)
