@@ -8,6 +8,7 @@ import cv2
 from PIL import Image
 import numpy as np
 from PIL import Image, ImageDraw
+import matplotlib.pyplot as plt
 
 ENV_MOVE = False                            #env是否变化
 MAX_STEP = 350                              #每局最大步数
@@ -221,7 +222,42 @@ class envCube:  # 生成环境类
 
         return new_observation, reward, done
         
-    def get_image(self):
+    
+    def render_trajectory(self, flag):
+        fig, ax = plt.subplots(figsize=(8, 8))
+        ax.set_xlim(0, self.SIZE)
+        ax.set_ylim(0, self.SIZE)
+
+        agent = (self.players[0].get_x(), self.players[0].get_y())
+        food = (self.food.get_x(), self.food.get_x())
+
+        enemies = set()
+        for i in range(self.NUM_ENEMIES):
+            enemies.add((self.enemies[i].get_x(), self.enemies[i].get_y()))
+
+        for enemy in enemies:  # 绘制敌人-红色
+            rect = plt.Rectangle((enemy[1], enemy[0]), 1, 1, facecolor='red')
+            ax.add_patch(rect)
+
+        rect = plt.Rectangle((agent[1], agent[0]), 1, 1, facecolor='blue')  # 绘制智能体-蓝色
+        ax.add_patch(rect)
+
+        rect = plt.Rectangle((food[1], food[0]), 1, 1, facecolor='green')  # 绘制食物-绿色
+        ax.add_patch(rect)
+
+        # 绘制智能体轨迹
+        x = [point[1] for point in self.trajectory]
+        y = [point[0] for point in self.trajectory]
+        ax.plot(x, y, color='yellow', linewidth=1)
+        if flag==1:
+            plt.savefig("trajectory_1.png")  # 保存图像到文件
+        if flag==2:
+            plt.savefig("trajectory_2.png")  # 保存图像到文件
+        if flag==3:
+            plt.savefig("trajectory_3.png")  # 保存图像到文件
+        plt.close(fig)
+
+    def render(self):                   #显示图片
         env = np.zeros((self.SIZE, self.SIZE, 3), dtype=np.uint8)
         env[:, :] = (255, 255, 255)  # 设置背景颜色为白色
 
@@ -234,42 +270,7 @@ class envCube:  # 生成环境类
             env[self.enemies[i].get_x()][self.enemies[i].get_y()] = self.d[self.ENEMY_N]
 
         img = Image.fromarray(env, 'RGB')
-        return img
-        
-    def render_trajectory(self, flag):
-        img = Image.new('RGB', (self.SIZE, self.SIZE), (255, 255, 255))  # 创建一个空白的白色图像
 
-        agent = (self.players[0].get_x(), self.players[0].get_y())
-        food = (self.food.get_x(), self.food.get_x())
-
-        enemies = set()
-        for i in range(self.NUM_ENEMIES):
-            enemies.add((self.enemies[i].get_x(), self.enemies[i].get_y()))
-
-        draw = ImageDraw.Draw(img)
-
-        for enemy in enemies:  # 绘制敌人-红色
-            draw.point((enemy[1], enemy[0]), (255, 0, 0))
-
-        draw.point((agent[1], agent[0]), (0, 0, 255))  # 绘制智能体-蓝色
-        draw.point((food[1], food[0]), (0, 255, 0))  # 绘制食物-绿色
-
-        # 绘制智能体轨迹
-        for i in range(len(self.trajectory) - 1):
-            point1 = (self.trajectory[i][1], self.trajectory[i][0])
-            point2 = (self.trajectory[i+1][1], self.trajectory[i+1][0])
-            draw.line([point1, point2], fill=(255, 255, 0), width=1)
-
-        img = img.resize((800, 800))
-        img.show()
-
-        if flag==1:
-            img.save("trajectory_1.png")  # 保存带有轨迹的图像
-        if flag==2:
-            img.save("trajectory_2.png")  # 保存带有轨迹的图像
-
-    def render(self):                   #显示图片
-        img = self.get_image()
         img = img.resize((800, 800))
         cv2.imshow('Predator', np.array(img))
         cv2.waitKey(1)

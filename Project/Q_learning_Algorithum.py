@@ -60,7 +60,6 @@ class Q_learning:
                 else:
                     new_q = current_q + self.learning_rate * (reward + self.discount * max_future_q - current_q)
                     new_q = new_q.to(self.device)
-                epsilon = max(self.epi_end, epsilon * self.epi_decay)
 
                 q_table[obs][action] = new_q.to(self.device)  # 将更新后的值移动到GPU上
                 obs = new_obs
@@ -69,7 +68,8 @@ class Q_learning:
                 if done:
                     episode_rewards.append(episode_reward)
                     break
-
+                
+            epsilon = max(self.epi_end, epsilon * self.epi_decay)
             if episode % self.show_every == 0:
                 print(f"Episode: {episode}        Epsilon:{epsilon}")
                 if self.verbose == 1:

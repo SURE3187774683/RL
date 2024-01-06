@@ -15,9 +15,9 @@ EPI_START = 1                               #epsilon的初始值
 EPI_END = 0.001                             #epsilon的终止值
 EPI_DECAY = 0.999995                         #epsilon的缩减速率
 #########################################################################
-VISUALIZE = False                           #是否观看回放
+VISUALIZE = 0                           #是否观看回放
 VERBOSE = 1                                 #调整日志模式（1——平均游戏得分；2——每局游戏得分）
-SHOW_EVERY = 10                            #显示频率
+SHOW_EVERY = 100                            #显示频率
 ##########################################################################
 
 demo_1 = DDQN(episodes = EPISODE_N, replay_memory_size = REPLAY_MEMORY_SIZE, batch_size = BATCH_SIZE,discount = DISCOUNT, learning_rate = 0.00001,update_target_mode_every = UPDATE_TARGET_MODE_EVERY,statistics_every = STATISTICS_EVERY,model_save_avg_reward = MODEL_SAVE_AVG_REWARD,epi_start = EPI_START, epi_end = EPI_END, epi_decay = EPI_DECAY,visualize = VISUALIZE,verbose = VERBOSE,show_every = SHOW_EVERY)

@@ -54,29 +54,29 @@ def is_valid_position(position, size):
 import cv2
 import numpy as np
 from PIL import Image
+import matplotlib.pyplot as plt
 
 def render(path, agent, food, enemies, size):
-    img = Image.new('RGB', (size, size), (255, 255, 255))  # 创建一个空白的RGB图像
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.set_xlim(0, size)
+    ax.set_ylim(0, size)
+    
+    for enemy in enemies:  # 绘制敌人-红色
+        rect = plt.Rectangle((enemy[1], enemy[0]), 1, 1, facecolor='red')
+        ax.add_patch(rect)
 
-    for enemy in enemies:                   # 绘制敌人-红色
-        img.putpixel((enemy[1], enemy[0]),  (255, 0, 0))
+    rect = plt.Rectangle((agent[1], agent[0]), 1, 1, facecolor='blue')  # 绘制智能体-蓝色
+    ax.add_patch(rect)
 
-    img.putpixel((agent[1], agent[0]),(0, 0, 255))   # 绘制智能体-蓝色
-    img.putpixel((food[1], food[0]), (0, 255, 0))   # 绘制食物-绿色
+    rect = plt.Rectangle((food[1], food[0]), 1, 1, facecolor='green')  # 绘制食物-绿色
+    ax.add_patch(rect)
 
-    img_array = np.array(img)  # 将PIL图像转换为NumPy数组
+    x = [point[1] for point in path]
+    y = [point[0] for point in path]
+    ax.plot(x, y, color='yellow', linewidth=1)
 
-    for i in range(len(path) - 1):                   # 绘制路径-白色
-        pt1 = (path[i][1], path[i][0])
-        pt2 = (path[i+1][1], path[i+1][0])
-        cv2.line(img_array, pt1, pt2, (255, 255, 0), 1, cv2.LINE_AA)
-
-    img = Image.fromarray(img_array)  # 将NumPy数组转换为PIL图像
-
-    img = img.resize((800, 800))
-    img.show()
-    cv2.waitKey(0)
-    img.save("trajectory_3.png")  # 保存带有轨迹的图像
+    plt.savefig("trajectory_3.png")  # 保存图像到文件
+    plt.close(fig)
 
 
 def astar_search(agent, food, enemies, size, env):
