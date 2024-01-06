@@ -56,7 +56,7 @@ import numpy as np
 from PIL import Image
 
 def render(path, agent, food, enemies, size):
-    img = Image.new('RGB', (size, size), (0, 0, 0))  # 创建一个空白的RGB图像
+    img = Image.new('RGB', (size, size), (255, 255, 255))  # 创建一个空白的RGB图像
 
     for enemy in enemies:                   # 绘制敌人-红色
         img.putpixel((enemy[1], enemy[0]),  (255, 0, 0))
@@ -69,7 +69,7 @@ def render(path, agent, food, enemies, size):
     for i in range(len(path) - 1):                   # 绘制路径-白色
         pt1 = (path[i][1], path[i][0])
         pt2 = (path[i+1][1], path[i+1][0])
-        cv2.line(img_array, pt1, pt2, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.line(img_array, pt1, pt2, (255, 255, 0), 1, cv2.LINE_AA)
 
     img = Image.fromarray(img_array)  # 将NumPy数组转换为PIL图像
 
