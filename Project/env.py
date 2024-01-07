@@ -222,7 +222,6 @@ class envCube:  # 生成环境类
 
         return new_observation, reward, done
         
-    
     def render_trajectory(self, flag):
         fig, ax = plt.subplots(figsize=(8, 8))
         ax.set_xlim(0, self.SIZE)
