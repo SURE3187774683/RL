@@ -135,7 +135,7 @@ class envCube:  # 生成环境类
 
         self.OBSERVATION_SPACE_VALUES = (2+2*self.NUM_ENEMIES)*self.NUM_PLAYERS  # state的数量
     def reset(self):
-        self.trajectory = []          # 在每个步骤开始之前清空轨迹列表
+        self.trajectory = [[] for _ in range(self.NUM_PLAYERS)]          # 在每个步骤开始之前清空轨迹列表
         
         self.old_distances = 0
 
@@ -208,7 +208,7 @@ class envCube:  # 生成环境类
 
         #将智能体的位置添加到轨迹列表中
         for i in range(self.NUM_PLAYERS):
-            self.trajectory.append((self.players[i].get_x(), self.players[i].get_y()))
+            self.trajectory[i].append((self.players[i].get_x(), self.players[i].get_y()))
 
         #所有玩家被吃掉/都到达/超过200步，游戏结束
         for i in range(self.NUM_PLAYERS):
@@ -223,10 +223,12 @@ class envCube:  # 生成环境类
         ax.set_xlim(0, self.SIZE)
         ax.set_ylim(0, self.SIZE)
         
-        agent_1 = (self.players[0].get_x(), self.players[0].get_y())
-        agent_2 = (self.players[1].get_x(), self.players[1].get_y())
+        for i in range(self.NUM_PLAYERS):
+            player_x = self.players[i].get_x()
+            player_y = self.players[i].get_y()
 
-        food = (self.food.get_x(), self.food.get_x())
+            rect = plt.Circle((player_y, player_x), radius=0.5, facecolor="blue")  # 根据玩家的索引选择颜色
+            ax.add_patch(rect)
 
         enemies = set()
         for i in range(self.NUM_ENEMIES):
@@ -237,19 +239,17 @@ class envCube:  # 生成环境类
             ax.add_patch(rect)
 
 
-        rect = plt.Circle((agent_1[1], agent_1[0]), radius=0.5 , facecolor='blue')  # 绘制智能体-蓝色
-        ax.add_patch(rect)
-        rect = plt.Circle((agent_2[1], agent_2[0]), radius=0.5 , facecolor='blue')  # 绘制智能体-蓝色
-        ax.add_patch(rect)
-
-
+        food = (self.food.get_x(), self.food.get_x())
         rect = plt.Circle((food[1], food[0]), radius=0.5, facecolor='green')  # 绘制食物-绿色
         ax.add_patch(rect)
 
         # 绘制智能体轨迹
-        x = [point[1] for point in self.trajectory]
-        y = [point[0] for point in self.trajectory]
-        #ax.plot(x, y, color='yellow', linewidth=5)
+        colors = ['yellow', 'orange', 'pink', 'black']  # 定义不同轨迹的颜色
+
+        for i in range(len(self.trajectory)):
+            x = [point[1] for point in self.trajectory[i]]
+            y = [point[0] for point in self.trajectory[i]]
+            ax.plot(x, y, color=colors[i], linewidth=5)
 
         if flag==1:
             plt.savefig("trajectory_1.png")  # 保存图像到文件
