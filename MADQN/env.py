@@ -216,6 +216,12 @@ class envCube:  # 生成环境类
                 if self.players[i] == self.food or self.players[i] == self.enemies[j] or self.episode_step >= MAX_STEP:
                     done = True
 
+        #任意两个玩家相撞，游戏结束
+        for i in range(self.NUM_PLAYERS):
+            for j in range(i+1, self.NUM_PLAYERS):
+                if self.players[i].get_x() == self.players[j].get_x() and self.players[i].get_y() == self.players[j].get_y():
+                    done = True
+
         return new_observation, reward, done
         
     def render_trajectory(self, flag):
