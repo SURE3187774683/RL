@@ -3,7 +3,6 @@
 # 优化器: Adam(自适应地调整学习率)
 # SURE
 
-import numpy as np
 import torch
 import torch.nn as nn
 import random
@@ -17,7 +16,6 @@ class ReplayMemory:     #经验回放缓存
         self.memory = deque(maxlen=capacity)
         self.device = device
 
-        
     def push(self, state, action, reward, next_state, done):    #将经验存储到缓存中
         self.memory.append((state, action, reward, next_state, done))
     
@@ -56,7 +54,7 @@ class DQN(nn.Module):
 class DQNAgent:
     episode_rewards = []
     loss_value = 0                                 #每局loss清零
-    def __init__(self, nb_states, nb_actions, REPLAY_MEMORY_SIZE, BATCH_SIZE, DISCOUNT, LEARNING_RATE,EPI_START, EPI_END, epsilon_decay,device,player_id):       #生成agent的参数
+    def __init__(self, player_id,nb_states, nb_actions, REPLAY_MEMORY_SIZE, BATCH_SIZE, DISCOUNT, LEARNING_RATE,EPI_START, EPI_END, epsilon_decay,device):       #生成agent的参数
         self.replay_memory_size = REPLAY_MEMORY_SIZE
         self.learning_rate = LEARNING_RATE
         self.nb_states = nb_states
