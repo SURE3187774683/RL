@@ -136,12 +136,12 @@ class envCube:  # 生成环境类
         new_distances = [] #下一步的每个agent和food的距离之和
         for i in range(self.NUM_PLAYERS):
             new_observation += (self.players[i] - self.food)    # 更新state
-            for j in range(self.NUM_ENEMIES):
-                new_observation += (self.players[i] - self.enemies[j])
-            
             distance = np.linalg.norm(new_observation, ord=1)   # 计算代理和食物的距离
             new_distances.append(distance)
             
+            for j in range(self.NUM_ENEMIES):
+                new_observation += (self.players[i] - self.enemies[j])
+
         new_distances_sum = np.sum(new_distances)
 
         if self.old_distances>new_distances_sum:
@@ -151,7 +151,7 @@ class envCube:  # 生成环境类
         else:
             reward = self.STAY_REWARD
         
-        self.old_distances = new_distances_sum
+        self.old_distances = new_distances
 
         for i in range(self.NUM_PLAYERS):           #定义奖励机制
             for j in range(self.NUM_ENEMIES):
