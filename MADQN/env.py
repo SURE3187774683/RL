@@ -3,7 +3,7 @@
 # 静态和动态环境可选择
 # 奖惩机制可自定义
 # SURE
-
+import json
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -91,8 +91,10 @@ class envCube:  # 生成环境类
             'farer': -10,
             'stay': 0
         }
+
+        #轨迹保存路径
         self.flag_file = {
-           1: "/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_1.png", 
+           1: "/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory.png", 
            2: "/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_2.png",
            3: "/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_3.png",
            4: "/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_4.png", 
@@ -101,34 +103,11 @@ class envCube:  # 生成环境类
         }
 
         #agent和enemy位置
-        self.agent_positions = [(0,15),(0,0)]
-        self.enemy_positions  = [(5,8),(6,8), 
-                                 (5,9),(6,9),
-                                 (5,10),(6,10),
-         
-                                 (9,2), (10,2),(11,2),(12,2),(13,2), (14,2),(15,2),(16,2),(17,2),(9,3),(9,4),
-                                 
-                                 (22,5), (23,5),(24,5),
-                                 (22,6), (23,6),(24,6),
-                                 (22,7), (23,7),(24,7), 
-                                 (22,8), (23,8),(24,8),
-                                 (22,9), (23,9),(24,9),
-         
-                                 (11,10),(12,10),(13,10),(14,10),(15,10),(16,10),
-                                 (11,11),(12,11),
-                                 (11,12),(12,12),
-                                 (11,13),(12,13),
-                                 
-                                 (3,20),(4,20),(5,20),
-                                 (3,21),(4,21),(5,21),(3,23),(3,24),(3,25),
-                                 (3,22),(4,22),(5,22),
-         
-                                 (14,20), (14,21),(14,22),(14,23), (14,24),(14,25),(14,26),(14,27),
-                                                  (15,22),(15,23), (15,24),(15,25),(15,26),(15,27),
-                                 
-                                 (21,17), (22,17),(23,17),(24,17), (25,17),(26,17),
-                                 (21,18), (22,18),(23,18),(24,18), (25,18),(26,18),(26,19),
-                                 (26,20),(26,21),(26,22),(26,23),(26,24)]  # 指定enemy的位置
+        with open('positions.json', 'r') as f:
+            positions = json.load(f)
+        self.agent_positions = [tuple(pos) for pos in positions['agent_positions']]
+        self.enemy_positions = [tuple(pos) for pos in positions['enemy_positions']]
+
         self.NUM_PLAYERS = len(self.agent_positions)    # agent的数量
         self.NUM_ENEMIES = len(self.enemy_positions)     # enemy的数量
         self.OBSERVATION_SPACE_VALUES = (2+2*self.NUM_ENEMIES)*self.NUM_PLAYERS  # state的数量
@@ -161,7 +140,7 @@ class envCube:  # 生成环境类
 
         return state
 
-    def step(self, agent_id,action):
+    def step(self, agent_id, action):
         equal_p_e = False
         self.episode_step += 1
         
@@ -179,7 +158,6 @@ class envCube:  # 生成环境类
                 enemy.move()
    
         new_observation = () 
-
         new_distances = [] #下一步的每个agent和food的距离之和
         for i in range(self.NUM_PLAYERS):
             new_observation += (self.agents[i] - self.food)    # 更新state
@@ -274,7 +252,6 @@ class envCube:  # 生成环境类
             x = [point[1] for point in self.trajectory[i]]
             y = [point[0] for point in self.trajectory[i]]
             ax.plot(x, y, color=colors[i], linewidth=5)
-
         
         plt.savefig(self.flag_file[flag])  # 保存图像到文件
         plt.close(fig)
