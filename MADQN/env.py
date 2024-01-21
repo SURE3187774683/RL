@@ -7,10 +7,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-ENV_MOVE = False                            #env是否变化
-MAX_STEP = 350                              #每局最大步数
-
-# 建立Cube类，用于创建player、food和enemy
+# 建立Cube类，用于创建agent、food和enemy
 class Cube:
     def __init__(self, size, x=None, y=None):  # 生成个体的位置
         self.size = size
@@ -20,6 +17,9 @@ class Cube:
         else:
             self.x = np.random.randint(0, self.size)
             self.y = np.random.randint(0, self.size)
+
+    def get_position(self):
+        return (self.x, self.y)
 
     def get_x(self):
         return self.x
@@ -76,36 +76,67 @@ class Cube:
             self.y = self.size - 1
 
 class envCube:  # 生成环境类
-    SIZE = 30         #地图大小
-    ACTION_SPACE_VALUES = 9 #action的数量
-    FOOD_REWARD = 100
-    ENEMY_PENALITY = -10
-    MOVE_PENALITY = -4
-    CLOSER_REWARD = 5
-    FARER_PENALITY = -5
-    STAY_REWARD = 0
+    def __init__(self) -> None:
+        self.SIZE = 30         #地图大小
+        self.ENV_MOVE = False                            #env是否变化
+        self.MAX_STEP = 300                              #每局最大步数
+        self.ACTION_SPACE_VALUES = 9
+        
+        #奖励机制
+        self.FOOD_REWARD = 100
+        self.ENEMY_PENALITY = -10
+        self.MOVE_PENALITY = -1
+        self.CLOSER_REWARD = 10
+        self.FARER_PENALITY = -10
+        self.STAY_REWARD = 0
 
-    def __init__(self,player_positions,enemy_positions) -> None:
-        self.enemy_positions = enemy_positions
-        self.player_positions = player_positions
-        self.NUM_PLAYERS = len(player_positions)    # player的数量
-        self.NUM_ENEMIES = len(enemy_positions)     # enemy的数量
+        #agent和enemy位置
+        self.agent_positions = [(0,15),(0,0)]
+        self.enemy_positions  = [(5,8),(6,8), 
+                                 (5,9),(6,9),
+                                 (5,10),(6,10),
+         
+                                 (9,2), (10,2),(11,2),(12,2),(13,2), (14,2),(15,2),(16,2),(17,2),(9,3),(9,4),
+                                 
+                                 (22,5), (23,5),(24,5),
+                                 (22,6), (23,6),(24,6),
+                                 (22,7), (23,7),(24,7), 
+                                 (22,8), (23,8),(24,8),
+                                 (22,9), (23,9),(24,9),
+         
+                                 (11,10),(12,10),(13,10),(14,10),(15,10),(16,10),
+                                 (11,11),(12,11),
+                                 (11,12),(12,12),
+                                 (11,13),(12,13),
+                                 
+                                 (3,20),(4,20),(5,20),
+                                 (3,21),(4,21),(5,21),(3,23),(3,24),(3,25),
+                                 (3,22),(4,22),(5,22),
+         
+                                 (14,20), (14,21),(14,22),(14,23), (14,24),(14,25),(14,26),(14,27),
+                                                  (15,22),(15,23), (15,24),(15,25),(15,26),(15,27),
+                                 
+                                 (21,17), (22,17),(23,17),(24,17), (25,17),(26,17),
+                                 (21,18), (22,18),(23,18),(24,18), (25,18),(26,18),(26,19),
+                                 (26,20),(26,21),(26,22),(26,23),(26,24)]  # 指定enemy的位置
+        self.NUM_PLAYERS = len(self.agent_positions)    # agent的数量
+        self.NUM_ENEMIES = len(self.enemy_positions)     # enemy的数量
         self.OBSERVATION_SPACE_VALUES = (2+2*self.NUM_ENEMIES)*self.NUM_PLAYERS  # state的数量
-
+        
     def reset(self):
         self.trajectory = [[] for _ in range(self.NUM_PLAYERS)]          # 在每个步骤开始之前清空轨迹列表
-        
+
+        self.agent_dead = [0]*self.NUM_PLAYERS
         self.old_distances = float('inf')  # 初始化为正无穷大
 
-        self.food = Cube(self.SIZE,23,23)       # 创建food
-
-        self.players = []                       # 创建players
+        # 创建food,agents,enemy
+        self.food = Cube(self.SIZE,23,23)       
+        self.agents = []                       
         for i in range(self.NUM_PLAYERS):
-            x, y = self.player_positions[i]  
-            self.player = Cube(self.SIZE, x, y)  
-            self.players.append(self.player)
-
-        self.enemies = []                       # 创建enemy
+            x, y = self.agent_positions[i]  
+            self.agent = Cube(self.SIZE, x, y)  
+            self.agents.append(self.agent)
+        self.enemies = []                       
         for i in range(self.NUM_ENEMIES):
             x, y = self.enemy_positions[i]  
             self.enemy = Cube(self.SIZE, x, y)  
@@ -113,20 +144,26 @@ class envCube:  # 生成环境类
 
         state = ()                              # 记录状态
         for i in range(self.NUM_PLAYERS):
-            state += (self.players[i] - self.food)
+            state += (self.agents[i] - self.food)
             for j in range(self.NUM_ENEMIES):
-                state += (self.players[i] - self.enemies[j])
+                state += (self.agents[i] - self.enemies[j])
         self.episode_step = 0
 
         return state
 
-    def step(self, player_id,action):
+    def step(self, agent_id,action):
         equal_p_e = False
-        self.episode_step += 1        
+        self.episode_step += 1
+        
+        # 当agent遇到enemy时将该agent的移动设置为静止
+        if self.agents[agent_id] in self.enemies:
+            self.agents[agent_id].action(8)
+            self.agent_dead[agent_id] = 1
 
-        self.players[player_id].action(action)
+        if not self.agent_dead[agent_id]:
+            self.agents[agent_id].action(action)      
 
-        if ENV_MOVE == True:
+        if self.ENV_MOVE == True:
             self.food.move()
             for enemy in self.enemies:
                 enemy.move()
@@ -135,12 +172,12 @@ class envCube:  # 生成环境类
 
         new_distances = [] #下一步的每个agent和food的距离之和
         for i in range(self.NUM_PLAYERS):
-            new_observation += (self.players[i] - self.food)    # 更新state
+            new_observation += (self.agents[i] - self.food)    # 更新state
             distance = np.linalg.norm(new_observation, ord=1)   # 计算代理和食物的距离
             new_distances.append(distance)
             
             for j in range(self.NUM_ENEMIES):
-                new_observation += (self.players[i] - self.enemies[j])
+                new_observation += (self.agents[i] - self.enemies[j])
 
         new_distances_sum = np.sum(new_distances)
 
@@ -151,36 +188,45 @@ class envCube:  # 生成环境类
         else:
             reward = self.STAY_REWARD
         
-        self.old_distances = new_distances
+        self.old_distances = new_distances_sum
 
         for i in range(self.NUM_PLAYERS):           #定义奖励机制
             for j in range(self.NUM_ENEMIES):
-                if self.players[i] == self.enemies[j]:
+                if self.agents[i] == self.enemies[j]:
                     equal_p_e = True
 
-            if self.players[i] == self.food:
+            if self.agents[i] == self.food:
                 reward += self.FOOD_REWARD
             elif equal_p_e:
                 reward += self.ENEMY_PENALITY
             else:
                 reward += self.MOVE_PENALITY
+        
+        #游戏结束标志
         done = False
-
-        #将智能体的位置添加到轨迹列表中
+        #任意一个玩家到达food，游戏结束
         for i in range(self.NUM_PLAYERS):
-            self.trajectory[i].append((self.players[i].get_x(), self.players[i].get_y()))
+            if self.agents[i] == self.food :
+                done = True
 
-        #任意一个玩家被吃掉/都到达/超过200步，游戏结束
-        for i in range(self.NUM_PLAYERS):
-            for j in range(self.NUM_ENEMIES):
-                if self.players[i] == self.food or self.players[i] == self.enemies[j] or self.episode_step >= MAX_STEP:
-                    done = True
+        #当步数大于200,游戏结束
+        if self.episode_step >= self.MAX_STEP:
+            done = True
 
         #任意两个玩家相撞，游戏结束
         for i in range(self.NUM_PLAYERS):
             for j in range(i+1, self.NUM_PLAYERS):
-                if self.players[i].get_x() == self.players[j].get_x() and self.players[i].get_y() == self.players[j].get_y():
+                if self.agents[i].get_x() == self.agents[j].get_x() and self.agents[i].get_y() == self.agents[j].get_y():
                     done = True
+
+        #所有agent都死了，游戏结束
+        if all(element == 1 for element in self.agent_dead):
+            self.agent_dead = [0]*self.NUM_PLAYERS
+            done = True
+
+        #将智能体的位置添加到轨迹列表中
+        for i in range(self.NUM_PLAYERS):
+            self.trajectory[i].append((self.agents[i].get_x(), self.agents[i].get_y()))
 
         return new_observation, reward, done
         
@@ -190,10 +236,10 @@ class envCube:  # 生成环境类
         ax.set_ylim(0, self.SIZE)
         
         for i in range(self.NUM_PLAYERS):
-            player_x = self.players[i].get_x()
-            player_y = self.players[i].get_y()
+            agent_x = self.agents[i].get_x()
+            agent_y = self.agents[i].get_y()
 
-            rect = plt.Circle((player_y, player_x), radius=0.5, facecolor="blue")  # 根据玩家的索引选择颜色
+            rect = plt.Circle((agent_y, agent_x), radius=0.5, facecolor="blue")  # 根据玩家的索引选择颜色
             ax.add_patch(rect)
 
         enemies = set()
@@ -210,7 +256,7 @@ class envCube:  # 生成环境类
         ax.add_patch(rect)
 
         # 绘制智能体轨迹
-        colors = ['yellow', 'orange', 'pink', 'black']  # 定义不同轨迹的颜色
+        colors = ['yellow', 'orange', 'pink', 'black','blue', 'green', 'orange', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan']  # 定义不同轨迹的颜色
 
         for i in range(len(self.trajectory)):
             x = [point[1] for point in self.trajectory[i]]
@@ -218,10 +264,10 @@ class envCube:  # 生成环境类
             ax.plot(x, y, color=colors[i], linewidth=5)
 
         if flag==1:
-            plt.savefig("/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_1.png")  # 保存图像到文件
+            plt.savefig("/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory.png")  # 保存图像到文件
         if flag==2:
             plt.savefig("trajectory_2.png")  # 保存图像到文件
         if flag==3:
-            plt.savefig("trajectory_3.png")  # 保存图像到文件
+            plt.savefig("/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_3.png")  # 保存图像到文件
         plt.close(fig)
         

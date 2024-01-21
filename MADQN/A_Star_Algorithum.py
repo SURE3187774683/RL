@@ -1,9 +1,7 @@
 #A*算法
 
-from PIL import Image
 import numpy as np
 from queue import PriorityQueue
-import cv2
 from env import envCube
 
 class AStarNode:
@@ -51,34 +49,6 @@ def is_valid_position(position, size):
     x, y = position
     return 0 <= x < size and 0 <= y < size
 
-import cv2
-import numpy as np
-from PIL import Image
-import matplotlib.pyplot as plt
-
-def render(path, agent, food, enemies, size):
-    fig, ax = plt.subplots(figsize=(8, 8))
-    ax.set_xlim(0, size)
-    ax.set_ylim(0, size)
-    
-    for enemy in enemies:  # 绘制敌人-红色
-        rect = plt.Rectangle((enemy[1], enemy[0]), 1, 1, facecolor='red')
-        ax.add_patch(rect)
-
-    rect = plt.Circle((agent[1], agent[0]), radius=0.5, facecolor='blue')  # 绘制智能体-蓝色
-    ax.add_patch(rect)
-
-    rect = plt.Circle((food[1], food[0]), radius=0.5, facecolor='green')  # 绘制食物-绿色
-    ax.add_patch(rect)
-
-    x = [point[1] for point in path]
-    y = [point[0] for point in path]
-    ax.plot(x, y, color='yellow', linewidth=5)
-
-    plt.savefig("trajectory_3.png")  # 保存图像到文件
-    plt.close(fig)
-
-
 def astar_search(agent, food, enemies, size, env):
     open_set = PriorityQueue()
     start_node = AStarNode(agent, 0, heuristic_cost_estimate(agent, food))
@@ -113,21 +83,23 @@ class A_Star:
     def train(self):
         env = envCube()
         env.reset()
-        agent = (env.players[0].get_x(), env.players[0].get_y())
-        food = (env.food.get_x(), env.food.get_y())
+        self.paths = []
+        agents = []
         enemies = set()
+
         for enemy in env.enemies:
-            enemies.add((enemy.get_x(), enemy.get_y()))
-        path = astar_search(agent, food, enemies, env.SIZE, env)
-        print("Path:", path)
-        render(path, agent, food, enemies, env.SIZE)
+            enemies.add(enemy.get_position())
+        
+        for player in env.agents:  # 对每一个智能体分别寻找路径
+            agent = player.get_position()
+            
+            food = env.food.get_position()
+            
+            path = astar_search(agent, food, enemies, env.SIZE, env)
+            env.trajectory.append(path)  # 将找到的路径添加到 env 的轨迹信息里
 
-
-
-
-
-
-
-
-
-    
+            self.paths.append(path)
+            agents.append(agent)
+        
+        print("Paths:", self.paths)
+        env.render_trajectory(3)  # 使用env的渲染函数
