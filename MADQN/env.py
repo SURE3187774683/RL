@@ -79,13 +79,13 @@ class envCube:  # 生成环境类
     def __init__(self) -> None:
         self.SIZE = 30         #地图大小
         self.ENV_MOVE = False                            #env是否变化
-        self.MAX_STEP = 300                              #每局最大步数
+        self.MAX_STEP = 200                              #每局最大步数
         self.ACTION_SPACE_VALUES = 9
         
         #奖励机制
         self.rewards = {
             'find_food': 100,
-            'meet_enemy': -10,
+            'meet_enemy': -20,
             'move': -1,
             'closer': 10,
             'farer': -10,
@@ -102,7 +102,7 @@ class envCube:  # 生成环境类
            6: "/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_6.png"
         }
 
-        #agent和enemy位置
+        #获取agent和enemy位置
         with open('positions.json', 'r') as f:
             positions = json.load(f)
         self.agent_positions = [tuple(pos) for pos in positions['agent_positions']]
@@ -113,11 +113,7 @@ class envCube:  # 生成环境类
         self.OBSERVATION_SPACE_VALUES = (2+2*self.NUM_ENEMIES)*self.NUM_PLAYERS  # state的数量
         
     def reset(self):
-        self.trajectory = [[] for _ in range(self.NUM_PLAYERS)]          # 在每个步骤开始之前清空轨迹列表
-
-        self.agent_dead = [0]*self.NUM_PLAYERS
-        self.old_distances = float('inf')  # 初始化为正无穷大
-
+        self.agents_rewards = [0] * self.NUM_PLAYERS  # 重置每个 agent 的奖励为 0
         # 创建food,agents,enemy
         self.food = Cube(self.SIZE,23,23)       
         self.agents = []                       
@@ -130,46 +126,58 @@ class envCube:  # 生成环境类
             x, y = self.enemy_positions[i]  
             self.enemy = Cube(self.SIZE, x, y)  
             self.enemies.append(self.enemy)
-
-        state = ()                              # 记录状态
+        
+        # 记录状态
+        state = []                            
         for i in range(self.NUM_PLAYERS):
             state += (self.agents[i] - self.food)
             for j in range(self.NUM_ENEMIES):
                 state += (self.agents[i] - self.enemies[j])
         self.episode_step = 0
 
+        self.trajectory = [[] for _ in range(self.NUM_PLAYERS)]          # 在每个步骤开始之前清空轨迹列表
+
+        self.agent_dead = [0]*self.NUM_PLAYERS  # agent复活
+        self.agent_find = [0]*self.NUM_PLAYERS  # agent均未找到food
+
+        self.old_distances = float('inf')  # 初始化为正无穷大
+
         return state
 
     def step(self, agent_id, action):
-        equal_p_e = False
         self.episode_step += 1
-        
-        # 当agent遇到enemy时将该agent的移动设置为静止
-        if self.agents[agent_id] in self.enemies:
-            self.agents[agent_id].action(8)
-            self.agent_dead[agent_id] = 1
 
-        if not self.agent_dead[agent_id]:
-            self.agents[agent_id].action(action)      
-
+        # 设置环境的移动和静止
         if self.ENV_MOVE == True:
             self.food.move()
             for enemy in self.enemies:
                 enemy.move()
-   
-        new_observation = () 
-        new_distances = [] #下一步的每个agent和food的距离之和
+        
+        # 当agent遇到enemy时或者遇到food时，将该agent的移动设置为静止
+        if self.agents[agent_id] == self.food or self.agents[agent_id] in self.enemies:
+            self.agents[agent_id].action(8)
+            self.agent_find[agent_id] = 1
+            self.agent_dead[agent_id] = 1
+
+        # 当agent没有遇到enemy并且没有找到food时继续action
+        if not self.agent_dead[agent_id] and not self.agent_find[agent_id]:
+            self.agents[agent_id].action(action)      
+
+        # 更新state
+        new_observation = [] 
         for i in range(self.NUM_PLAYERS):
-            new_observation += (self.agents[i] - self.food)    # 更新state
-            distance = np.linalg.norm(new_observation, ord=1)   # 计算代理和食物的距离
-            new_distances.append(distance)
-            
+            new_observation += (self.agents[i] - self.food)   
             for j in range(self.NUM_ENEMIES):
                 new_observation += (self.agents[i] - self.enemies[j])
-
+        
+        # 计算代理和食物的距离
+        new_distances = [] 
+        for i in range(self.NUM_PLAYERS):
+            distance = np.linalg.norm(new_observation, ord=1)   
+            new_distances.append(distance)
         new_distances_sum = np.sum(new_distances)
 
-        #奖励机制
+        # 奖励机制一：基于agent和food间的距离
         if self.old_distances>new_distances_sum:
             reward = self.rewards['closer']
         elif self.old_distances<new_distances_sum:
@@ -179,29 +187,20 @@ class envCube:  # 生成环境类
         
         self.old_distances = new_distances_sum
 
-        for i in range(self.NUM_PLAYERS):           #定义奖励机制
-            for j in range(self.NUM_ENEMIES):
-                if self.agents[i] == self.enemies[j]:
-                    equal_p_e = True
-
-            if self.agents[i] == self.food:
-                reward += self.rewards['find_food']
-            elif equal_p_e:
-                reward += self.rewards['meet_enemy']
-            else:
-                reward += self.rewards['move']
+        # 奖励机制二：只有当 agent 没有遇到 enemy 或者 food 时，才会更新奖励
+        if not self.agent_dead[agent_id] and not self.agent_find[agent_id]:
+            self.agents_rewards[agent_id] += reward
+ 
+        # 当 agent 遇到 enemy 或者 food 时，只需要将 reward 加上相应的奖惩即可
+        if self.agents[agent_id] == self.food:
+            reward += self.rewards['find_food']
+        elif self.agents[agent_id] in self.enemies:
+            reward += self.rewards['meet_enemy']
+        else:
+            reward += self.rewards['move']
         
         #游戏结束标志
         done = False
-
-        #任意一个玩家到达food，游戏结束
-        for i in range(self.NUM_PLAYERS):
-            if self.agents[i] == self.food :
-                done = True
-
-        #当步数大于200,游戏结束
-        if self.episode_step >= self.MAX_STEP:
-            done = True
 
         #任意两个玩家相撞，游戏结束
         for i in range(self.NUM_PLAYERS):
@@ -209,9 +208,12 @@ class envCube:  # 生成环境类
                 if self.agents[i].get_x() == self.agents[j].get_x() and self.agents[i].get_y() == self.agents[j].get_y():
                     done = True
 
-        #所有agent都死了，游戏结束
-        if all(element == 1 for element in self.agent_dead):
-            self.agent_dead = [0]*self.NUM_PLAYERS
+        #所有agent都遇到enemy或者都找到food了，游戏结束
+        if all(element == 1 for element in self.agent_dead) or all(element == 1 for element in self.agent_find):
+            done = True
+
+        #当步数大于200,游戏结束
+        if self.episode_step >= self.MAX_STEP:
             done = True
 
         #将智能体的位置添加到轨迹列表中

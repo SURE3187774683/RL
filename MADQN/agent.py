@@ -37,22 +37,17 @@ class DQN(nn.Module):
     def __init__(self, input_shape, output_shape):      #生成一个state数量输入，action数量输出的神经网络
         super(DQN, self).__init__()
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(input_shape, 64)    # 增加全连接层的节点数
-        self.relu1 = nn.ReLU()
-        self.fc2 = nn.Linear(64, 64)
-        self.relu2 = nn.ReLU()
-        self.fc3 = nn.Linear(64, 64)     # 添加一个隐藏层
-        self.relu3 = nn.ReLU()
-        self.output = nn.Linear(64, output_shape)
+        self.fc1 = nn.Linear(input_shape, 32)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(32, 32)
+        self.output = nn.Linear(32, output_shape)
         
     def forward(self, x):
         x = self.flatten(x)
         x = self.fc1(x)
-        x = self.relu1(x)
+        x = self.relu(x)
         x = self.fc2(x)
-        x = self.relu2(x)
-        x = self.fc3(x)
-        x = self.relu3(x)
+        x = self.relu(x)
         x = self.output(x)
         return x
 
