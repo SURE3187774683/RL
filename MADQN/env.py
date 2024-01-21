@@ -83,12 +83,22 @@ class envCube:  # 生成环境类
         self.ACTION_SPACE_VALUES = 9
         
         #奖励机制
-        self.FOOD_REWARD = 100
-        self.ENEMY_PENALITY = -10
-        self.MOVE_PENALITY = -1
-        self.CLOSER_REWARD = 10
-        self.FARER_PENALITY = -10
-        self.STAY_REWARD = 0
+        self.rewards = {
+            'find_food': 100,
+            'meet_enemy': -10,
+            'move': -1,
+            'closer': 10,
+            'farer': -10,
+            'stay': 0
+        }
+        self.flag_file = {
+           1: "/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_1.png", 
+           2: "/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_2.png",
+           3: "/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_3.png",
+           4: "/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_4.png", 
+           5: "/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_5.png",
+           6: "/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_6.png"
+        }
 
         #agent和enemy位置
         self.agent_positions = [(0,15),(0,0)]
@@ -181,12 +191,13 @@ class envCube:  # 生成环境类
 
         new_distances_sum = np.sum(new_distances)
 
+        #奖励机制
         if self.old_distances>new_distances_sum:
-            reward = self.CLOSER_REWARD
+            reward = self.rewards['closer']
         elif self.old_distances<new_distances_sum:
-            reward = self.FARER_PENALITY
+            reward = self.rewards['farer']
         else:
-            reward = self.STAY_REWARD
+            reward = self.rewards['stay']
         
         self.old_distances = new_distances_sum
 
@@ -196,14 +207,15 @@ class envCube:  # 生成环境类
                     equal_p_e = True
 
             if self.agents[i] == self.food:
-                reward += self.FOOD_REWARD
+                reward += self.rewards['find_food']
             elif equal_p_e:
-                reward += self.ENEMY_PENALITY
+                reward += self.rewards['meet_enemy']
             else:
-                reward += self.MOVE_PENALITY
+                reward += self.rewards['move']
         
         #游戏结束标志
         done = False
+
         #任意一个玩家到达food，游戏结束
         for i in range(self.NUM_PLAYERS):
             if self.agents[i] == self.food :
@@ -263,11 +275,6 @@ class envCube:  # 生成环境类
             y = [point[0] for point in self.trajectory[i]]
             ax.plot(x, y, color=colors[i], linewidth=5)
 
-        if flag==1:
-            plt.savefig("/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory.png")  # 保存图像到文件
-        if flag==2:
-            plt.savefig("trajectory_2.png")  # 保存图像到文件
-        if flag==3:
-            plt.savefig("/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_3.png")  # 保存图像到文件
-        plt.close(fig)
         
+        plt.savefig(self.flag_file[flag])  # 保存图像到文件
+        plt.close(fig)

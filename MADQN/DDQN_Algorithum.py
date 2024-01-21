@@ -23,7 +23,7 @@ class DDQN:
     def train(self):
         env = envCube()
 
-        for agent_id in range(len(env.agent_positions)):
+        for agent_id in range(env.NUM_PLAYERS):
             agent = DQNAgent(agent_id, env.OBSERVATION_SPACE_VALUES, env.ACTION_SPACE_VALUES, self.replay_memory_size, self.batch_size, self.discount,self.learning_rate , self.epi_start, self.epi_end, self.epi_decay,self.device)
             self.agents.append(agent)
 
@@ -74,10 +74,12 @@ class DDQN:
                 self.writer.add_scalar('Epsilon', agent.epsilon, episode)
                 self.writer.add_scalar('Loss', agent.loss_value, episode)
 
-                if avg_reward > self.model_save_avg_reward and avg_reward < 90:          #保存优秀的模型
-                    self.model_save_avg_reward = avg_reward
-                    model_dir = f'./models/{self.filename}'
-                    if not os.path.exists(model_dir):
-                        os.makedirs(model_dir)
-                    model_path = os.path.join(model_dir, f'{avg_reward:7.3f}_{int(time.time())}.model')
-                    torch.save(DQN(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES).state_dict(), model_path) .to(self.device)
+                # 如果奖励大于一定的值，将模型保存下来
+            if avg_reward > self.model_save_avg_reward and avg_reward < 90:
+                self.model_save_avg_reward = avg_reward
+                model_dir = f'./models/{self.filename}'
+                if not os.path.exists(model_dir):
+                    os.makedirs(model_dir)
+                model_path = os.path.join(model_dir, f'{avg_reward:7.3f}_{int(time.time())}.model')
+                model = DQN(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES).to(self.device)
+                torch.save(model.state_dict(), model_path)
