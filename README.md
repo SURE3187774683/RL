@@ -15,6 +15,7 @@
 #### 2.position.json中定义了agent和enemy的位置和个数
 #### 3.可用于不同算法（DDQN、Q-learning、A*）效率对比，并得到最终agent的路径轨迹
 #### 4.可以保存训练好的网络模型
+#### 5.draw文件夹可以绘制相应的曲线
 
 
 
