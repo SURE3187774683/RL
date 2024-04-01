@@ -20,8 +20,10 @@ VERBOSE = 1                                 # 调整日志模式（1——平均
 SHOW_EVERY = 100                            # 显示频率
 ##########################################################################
 demo_1 = DDQN(episodes = EPISODE_N, replay_memory_size = REPLAY_MEMORY_SIZE, batch_size = BATCH_SIZE,discount = DISCOUNT, learning_rate = LEARNING_RATE,update_target_mode_every = UPDATE_TARGET_MODE_EVERY,statistics_every = STATISTICS_EVERY,model_save_avg_reward = MODEL_SAVE_AVG_REWARD,epi_start = EPI_START, epi_end = EPI_END, epi_decay = EPI_DECAY,verbose = VERBOSE,show_every = SHOW_EVERY)
+demo_2 = Q_learning(episodes = EPISODE_N, discount = DISCOUNT, learning_rate = LEARNING_RATE,statistics_every = STATISTICS_EVERY,model_save_avg_reward = MODEL_SAVE_AVG_REWARD,epi_start = EPI_START, epi_end = EPI_END, epi_decay = EPI_DECAY,verbose = VERBOSE,show_every = SHOW_EVERY)
 demo_3 = A_Star()
 
+#demo_1.train()
+demo_2.train()
 demo_3.train()
-demo_1.train()
 

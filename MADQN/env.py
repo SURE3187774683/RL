@@ -104,33 +104,7 @@ class envCube:  # 生成环境类
         }
 
         self.agent_positions = [(0,0)]
-        self.enemy_positions  = [(5,8),(6,8), 
-                                 (5,9),(6,9),
-                                 (5,10),(6,10),
-         
-                                 (9,2), (10,2),(11,2),(12,2),(13,2), (14,2),(15,2),(16,2),(17,2),(9,3),(9,4),
-                                 
-                                 (22,5), (23,5),(24,5),
-                                 (22,6), (23,6),(24,6),
-                                 (22,7), (23,7),(24,7), 
-                                 (22,8), (23,8),(24,8),
-                                 (22,9), (23,9),(24,9),
-         
-                                 (11,10),(12,10),(13,10),(14,10),(15,10),(16,10),
-                                 (11,11),(12,11),
-                                 (11,12),(12,12),
-                                 (11,13),(12,13),
-                                 
-                                 (3,20),(4,20),(5,20),
-                                 (3,21),(4,21),(5,21),(3,23),(3,24),(3,25),
-                                 (3,22),(4,22),(5,22),
-         
-                                 (14,20), (14,21),(14,22),(14,23), (14,24),(14,25),(14,26),(14,27),
-                                                  (15,22),(15,23), (15,24),(15,25),(15,26),(15,27),
-                                 
-                                 (21,17), (22,17),(23,17),(24,17), (25,17),(26,17),
-                                 (21,18), (22,18),(23,18),(24,18), (25,18),(26,18),(26,19),
-                                 (26,20),(26,21),(26,22),(26,23),(26,24)
+        self.enemy_positions  = [(5,8)
                                  ]  # 指定enemy的位置
 
         self.NUM_PLAYERS = len(self.agent_positions)    # agent的数量
@@ -290,3 +264,27 @@ class envCube:  # 生成环境类
         
         plt.savefig(self.flag_file[flag])  # 保存图像到文件
         plt.close(fig)
+
+
+    # 用于qlearning
+    def get_qtable(self, qtable_name=None): #搭建q table表格
+        q_table = {}
+        def initialize_q_table(dimensions, ACTION_SPACE_VALUES):##定义q_table初始化函数
+            q_table = {}
+            recursive_initialize_q_table(
+                dimensions, ACTION_SPACE_VALUES, [], q_table)
+            return q_table
+        def recursive_initialize_q_table(dimensions, ACTION_SPACE_VALUES, indices, q_table):
+            if len(indices) == len(dimensions):
+                q_table[tuple(indices)] = [np.random.uniform(-5, 0)
+                                           for _ in range(ACTION_SPACE_VALUES)]
+            else:
+                for i in range(-dimensions[len(indices)] + 1, dimensions[len(indices)]):
+                    indices.append(i)
+                    recursive_initialize_q_table(
+                        dimensions, self.ACTION_SPACE_VALUES, indices, q_table)
+                    indices.pop()
+        dimensions = self.NUM_PLAYERS*(self.NUM_ENEMIES*2*[self.SIZE]+[self.SIZE]+[self.SIZE])
+        q_table = initialize_q_table(dimensions, self.ACTION_SPACE_VALUES)     
+
+        return q_table

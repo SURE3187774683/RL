@@ -13,7 +13,7 @@ import numpy as np
 from env import envCube
 
 class Q_learning:
-    def __init__(self, episodes, discount, learning_rate,statistics_every, model_save_avg_reward, epi_start, epi_end, epi_decay, visualize, verbose, show_every):
+    def __init__(self, episodes, discount, learning_rate,statistics_every, model_save_avg_reward, epi_start, epi_end, epi_decay, verbose, show_every):
 
         path = os.path.realpath(__file__)
         filename = os.path.splitext(os.path.basename(path))[0]
@@ -28,7 +28,6 @@ class Q_learning:
         self.epi_start = epi_start
         self.epi_end = epi_end
         self.epi_decay = epi_decay
-        self.visualize = visualize
         self.verbose = verbose
         self.show_every = show_every
     
@@ -77,8 +76,6 @@ class Q_learning:
                     print(f"### Average Reward: {avg_reward}")
                 if self.verbose == 2:
                     print(f"### Episode Reward: {episode_rewards[-1]}")
-                if self.visualize:
-                    env.render()
 
             if episode % self.statistics_every == 0:
                 avg_reward = sum(episode_rewards[-self.statistics_every:]) / self.statistics_every
