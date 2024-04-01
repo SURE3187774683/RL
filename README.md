@@ -1,8 +1,10 @@
 # RL for Path-Planning
 
 ## Main
-#### 1.project（RL入门的项目）
-#### 2.my_learning_experience（本人的rl学习经历）
+#### 1.MADQN（多个agent的RL入门的项目）
+#### 2.SADQN（单个agent的RL入门的项目）
+#### 3.draw（算法曲线绘制脚本）
+#### 4.my_learning_experience（本人的rl学习经历）
 
 ## Version
 #### Ubuntu-22.04
