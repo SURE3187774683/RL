@@ -77,19 +77,20 @@ class Cube:
 
 class envCube:  # 生成环境类
     def __init__(self) -> None:
-        self.SIZE = 30         #地图大小
+        self.SIZE = 32         #地图大小
         self.ENV_MOVE = False                            #env是否变化
-        self.MAX_STEP = 200                              #每局最大步数
+        self.MAX_STEP = 300                              #每局最大步数
         self.ACTION_SPACE_VALUES = 9
         
         #奖励机制
         self.rewards = {
             'find_food': 100,
-            'meet_enemy': -20,
+            'meet_enemy': -80,
             'move': -1,
-            'closer': 10,
-            'farer': -10,
-            'stay': 0
+            'closer': 5,
+            'farer': -5,
+            'stay': 0,
+            'bingo': 500
         }
 
         #轨迹保存路径
@@ -102,11 +103,35 @@ class envCube:  # 生成环境类
            6: "/mnt/c/Users/asus/Desktop/trajectory_picture/trajectory_6.png"
         }
 
-        #获取agent和enemy位置
-        with open('positions.json', 'r') as f:
-            positions = json.load(f)
-        self.agent_positions = [tuple(pos) for pos in positions['agent_positions']]
-        self.enemy_positions = [tuple(pos) for pos in positions['enemy_positions']]
+        self.agent_positions = [(0,0)]
+        self.enemy_positions  = [(5,8),(6,8), 
+                                 (5,9),(6,9),
+                                 (5,10),(6,10),
+         
+                                 (9,2), (10,2),(11,2),(12,2),(13,2), (14,2),(15,2),(16,2),(17,2),(9,3),(9,4),
+                                 
+                                 (22,5), (23,5),(24,5),
+                                 (22,6), (23,6),(24,6),
+                                 (22,7), (23,7),(24,7), 
+                                 (22,8), (23,8),(24,8),
+                                 (22,9), (23,9),(24,9),
+         
+                                 (11,10),(12,10),(13,10),(14,10),(15,10),(16,10),
+                                 (11,11),(12,11),
+                                 (11,12),(12,12),
+                                 (11,13),(12,13),
+                                 
+                                 (3,20),(4,20),(5,20),
+                                 (3,21),(4,21),(5,21),(3,23),(3,24),(3,25),
+                                 (3,22),(4,22),(5,22),
+         
+                                 (14,20), (14,21),(14,22),(14,23), (14,24),(14,25),(14,26),(14,27),
+                                                  (15,22),(15,23), (15,24),(15,25),(15,26),(15,27),
+                                 
+                                 (21,17), (22,17),(23,17),(24,17), (25,17),(26,17),
+                                 (21,18), (22,18),(23,18),(24,18), (25,18),(26,18),(26,19),
+                                 (26,20),(26,21),(26,22),(26,23),(26,24)
+                                 ]  # 指定enemy的位置
 
         self.NUM_PLAYERS = len(self.agent_positions)    # agent的数量
         self.NUM_ENEMIES = len(self.enemy_positions)     # enemy的数量
@@ -148,77 +173,86 @@ class envCube:  # 生成环境类
         self.episode_step += 1
 
         # 设置环境的移动和静止
-        if self.ENV_MOVE == True:
+        if self.ENV_MOVE:
             self.food.move()
             for enemy in self.enemies:
                 enemy.move()
-        
-        # 当agent遇到enemy时或者遇到food时，将该agent的移动设置为静止
-        if self.agents[agent_id] == self.food or self.agents[agent_id] in self.enemies:
-            self.agents[agent_id].action(8)
-            self.agent_find[agent_id] = 1
-            self.agent_dead[agent_id] = 1
 
-        # 当agent没有遇到enemy并且没有找到food时继续action
-        if not self.agent_dead[agent_id] and not self.agent_find[agent_id]:
-            self.agents[agent_id].action(action)      
+        # 检查agent是否遇到enemy或者food，并记录下来
+        if self.agents[agent_id] == self.food:
+            if self.agent_find[agent_id] == 0:
+                self.agent_find[agent_id] = 1
+                reward = self.rewards['find_food']
+            else:
+                reward = self.rewards['stay']
+        elif self.agents[agent_id] in self.enemies:
+            self.agent_dead[agent_id] = 1
+            reward = self.rewards['meet_enemy']
+        else:
+            self.agents[agent_id].action(action)
+            reward = self.rewards['move']
+
+        # 当agent遇到food时，将该agent的移动设置为静止
+        if self.agents[agent_id] == self.food:
+            self.agents[agent_id].x = self.food.x
+            self.agents[agent_id].y = self.food.y
 
         # 更新state
-        new_observation = [] 
+        new_observation = []
         for i in range(self.NUM_PLAYERS):
-            new_observation += (self.agents[i] - self.food)   
+            new_observation += (self.agents[i] - self.food)
             for j in range(self.NUM_ENEMIES):
                 new_observation += (self.agents[i] - self.enemies[j])
-        
+
         # 计算代理和食物的距离
-        new_distances = [] 
+        new_distances = []
         for i in range(self.NUM_PLAYERS):
-            distance = np.linalg.norm(new_observation, ord=1)   
+            distance = np.linalg.norm(new_observation, ord=1)
             new_distances.append(distance)
         new_distances_sum = np.sum(new_distances)
 
         # 奖励机制一：基于agent和food间的距离
-        if self.old_distances>new_distances_sum:
-            reward = self.rewards['closer']
-        elif self.old_distances<new_distances_sum:
-            reward = self.rewards['farer']
+        if self.old_distances > new_distances_sum:
+            reward += self.rewards['closer']
+        elif self.old_distances < new_distances_sum:
+            reward += self.rewards['farer']
         else:
-            reward = self.rewards['stay']
-        
+            reward += self.rewards['stay']
+
         self.old_distances = new_distances_sum
 
-        # 奖励机制二：只有当 agent 没有遇到 enemy 或者 food 时，才会更新奖励
-        if not self.agent_dead[agent_id] and not self.agent_find[agent_id]:
-            self.agents_rewards[agent_id] += reward
- 
-        # 当 agent 遇到 enemy 或者 food 时，只需要将 reward 加上相应的奖惩即可
-        if self.agents[agent_id] == self.food:
-            reward += self.rewards['find_food']
-        elif self.agents[agent_id] in self.enemies:
-            reward += self.rewards['meet_enemy']
-        else:
-            reward += self.rewards['move']
-        
-        #游戏结束标志
+        # 当两个agent相撞时，视作agent碰到障碍物
+        for i in range(self.NUM_PLAYERS):
+            for j in range(i + 1, self.NUM_PLAYERS):
+                if self.agents[i] == self.agents[j] and not self.agents[i] ==   self.food:
+                    reward += self.rewards['meet_enemy']
+
+        # 游戏结束标志
         done = False
 
-        #任意两个玩家相撞，游戏结束
+        # 任意两个玩家相撞，游戏结束
         for i in range(self.NUM_PLAYERS):
-            for j in range(i+1, self.NUM_PLAYERS):
-                if self.agents[i].get_x() == self.agents[j].get_x() and self.agents[i].get_y() == self.agents[j].get_y():
+            for j in range(i + 1, self.NUM_PLAYERS):
+                if self.agents[i] == self.agents[j] and not self.agents[i] ==   self.food:
                     done = True
 
-        #所有agent都遇到enemy或者都找到food了，游戏结束
-        if all(element == 1 for element in self.agent_dead) or all(element == 1 for element in self.agent_find):
+        # 所有agent都找到food了，游戏结束
+        if all(element == 1 for element in self.agent_find):
+            print("WIN!!!\n")
+            reward += self.rewards['bingo']
             done = True
 
-        #当步数大于200,游戏结束
+        # 有一个agent遇到enemy了，游戏结束
+        if any(self.agent_dead):
+            done = True
+
+        # 当步数大于200,游戏结束
         if self.episode_step >= self.MAX_STEP:
             done = True
 
-        #将智能体的位置添加到轨迹列表中
+        # 将智能体的位置添加到轨迹列表中
         for i in range(self.NUM_PLAYERS):
-            self.trajectory[i].append((self.agents[i].get_x(), self.agents[i].get_y()))
+            self.trajectory[i].append((self.agents[i].get_x(), self.agents[i].  get_y()))
 
         return new_observation, reward, done
         
@@ -242,13 +276,12 @@ class envCube:  # 生成环境类
             rect = plt.Rectangle((enemy[1], enemy[0]), 1, 1, facecolor='red')
             ax.add_patch(rect)
 
-
         food = (self.food.get_x(), self.food.get_x())
         rect = plt.Circle((food[1], food[0]), radius=0.5, facecolor='green')  # 绘制食物-绿色
         ax.add_patch(rect)
 
         # 绘制智能体轨迹
-        colors = ['yellow', 'orange', 'pink', 'black','blue', 'green', 'orange', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan']  # 定义不同轨迹的颜色
+        colors = ['yellow', 'orange', 'pink', 'black','blue', 'green', 'orange', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan','yellow', 'orange', 'pink', 'black','blue', 'green', 'orange', 'purple', 'brown', 'pink', 'gray', 'olive', 'cyan']  # 定义不同轨迹的颜色
 
         for i in range(len(self.trajectory)):
             x = [point[1] for point in self.trajectory[i]]

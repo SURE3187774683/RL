@@ -9,6 +9,7 @@ import random
 from collections import deque
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F
 
 class ReplayMemory:     #经验回放缓存
     def __init__(self, capacity,device):   #随机生成capacity大小的经验池
@@ -34,20 +35,19 @@ class ReplayMemory:     #经验回放缓存
         return len(self.memory)
 
 class DQN(nn.Module):
-    def __init__(self, input_shape, output_shape):      #生成一个state数量输入，action数量输出的神经网络
+    def __init__(self, input_shape, output_shape):
         super(DQN, self).__init__()
         self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(input_shape, 32)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(32, 32)
+        self.fc1 = nn.Linear(input_shape, 64)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, 32)
         self.output = nn.Linear(32, output_shape)
-        
+
     def forward(self, x):
         x = self.flatten(x)
-        x = self.fc1(x)
-        x = self.relu(x)
-        x = self.fc2(x)
-        x = self.relu(x)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
         x = self.output(x)
         return x
 

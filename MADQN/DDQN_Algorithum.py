@@ -41,13 +41,12 @@ class DDQN:
                     agent.update_model()
                     state = next_state
                     episode_rewards[agent.agent_id] += reward
-                    
+                    #env.render_trajectory(1)
                     if done:
                         agent.episode_rewards.append(episode_rewards[agent.agent_id])
                         break# 跳出内层的 for 循环
                 if done:
                     break  # 跳出外层的 while 循环
-            #env.render_trajectory(1)
                 
             if episode % self.update_target_mode_every == 0:         #更新target_model(将当前模型的复制到目标模型)
                 for agent in self.agents:
@@ -63,7 +62,14 @@ class DDQN:
 
             if episode % self.statistics_every == 0:                 #记录有用的参数
                 avg_reward = sum(agent.episode_rewards[-self.statistics_every:])/len(agent.episode_rewards[-self.statistics_every:])
+                max_reward = max(agent.episode_rewards[-self.statistics_every:])
+                min_reward = min(agent.episode_rewards[-self.statistics_every:])
+
+                total_episode_reward = sum(episode_rewards)
+                self.writer.add_scalar('Episode Reward', total_episode_reward, episode)
                 self.writer.add_scalar('Average Reward', avg_reward, episode)
+                self.writer.add_scalar('Max Reward', max_reward, episode)
+                self.writer.add_scalar('Min Reward', min_reward, episode)
                 self.writer.add_scalar('Epsilon', agent.epsilon, episode)
                 self.writer.add_scalar('Loss', agent.loss_value, episode)
 
@@ -76,5 +82,5 @@ class DDQN:
                     model_path = os.path.join(model_dir, f'{avg_reward:7.3f}_{int(time.time())}.model')
                     torch.save(DQN(env.OBSERVATION_SPACE_VALUES,env.ACTION_SPACE_VALUES).state_dict(), model_path)
 
-            if episode % 200==0:                           #打印日志
-                env.render_trajectory(1)
+            #if episode % 50==0:                           #打印日志
+            #    env.render_trajectory(1)
